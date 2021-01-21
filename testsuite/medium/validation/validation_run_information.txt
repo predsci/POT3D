@@ -1,0 +1,20 @@
+POT3D MEDIUM RUN VALIDATION
+
+System info:
+COMET @ San Diego Super Computer Center
+CPU:                       E5-2680 v3 2.5GHz 2x12-core
+OS:                        Linux CentOS 6.10 2.6.32-754.2.1.el6.x86_64
+Compiler:                  Intel 2018.1.163
+Compile flags for POT3D:   -O3 -fp-model precise -assume byterecl -heap-arrays -xCORE-AVX2
+MPI Library:               Intel MPI 2018.1.163
+
+Run info:
+Number of nodes:                    72
+Number of MPI ranks per node:       24
+Total MPI ranks used:             1728
+Wall clock time:                371.77 seconds
+Average COMM time:              145.26 seconds
+
+
+
+

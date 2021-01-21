@@ -1,0 +1,39 @@
+FC = mpif90
+
+FFLAGS = <FFLAGS> -I<HDF5_INCLUDE_DIR>
+
+OBJS = number_types.o \
+ zm_parse_modules.o \
+ zm_parse.o \
+ zm_sds_modules.o \
+ zm_sds.o \
+ pot3d.o
+
+LDFLAGS = -L<HDF5_LIB_DIR> <HDF5_LIB_FLAGS>
+
+all:	$(OBJS)
+	$(FC) $(FFLAGS) $(OBJS) $(LDFLAGS) -o pot3d
+	rm *.mod *.o 2>/dev/null
+
+clean:
+	rm pot3d 2>/dev/null
+	rm -f *.mod *.o 2>/dev/null
+
+number_types.o: number_types.f
+	$(FC) -c $(FFLAGS) $<
+
+zm_parse_modules.o: zm_parse_modules.f
+	$(FC) -c $(FFLAGS) $<
+
+zm_parse.o: zm_parse.f zm_parse_modules.f number_types.f
+	$(FC) -c $(FFLAGS) $<
+
+zm_sds_modules.o: zm_sds_modules.f
+	$(FC) -c $(FFLAGS) $<
+
+zm_sds.o: zm_sds.f zm_sds_modules.f number_types.f
+	$(FC) -c $(FFLAGS) $<
+
+pot3d.o: pot3d.f
+	$(FC) -c $(FFLAGS) $<
+

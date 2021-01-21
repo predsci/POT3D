@@ -1,0 +1,20 @@
+POT3D TEST RUN VALIDATION
+
+System info:
+Local Desktop
+CPU:                       E5-1650 v4 3.6GHz 6-core
+OS:                        Linux Mint 19 (Ubuntu 18.04) 4.15.0-39-generic
+Compiler:                  GNU GFORTRAN 7.3.0-27ubuntu1~18.04
+Compile flags for POT3D:   -O3 -mtune=native
+MPI Library:               OpenMPI 2.1.1
+
+Run info:
+Number of nodes:                     1
+Number of MPI ranks per node:        2
+Total MPI ranks used:                2
+Wall clock time:                 18.60 seconds
+Average COMM time:                0.29 seconds
+
+
+
+
