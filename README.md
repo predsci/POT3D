@@ -5,6 +5,22 @@ POT3D: High Performance Potential Field Solver
 Predictive Science Inc.  
 www.predsci.com
 
+### OVERVIEW ###
+
+POT3D is a Fortran code that computes potential field solutions 
+to approximate the solar coronal magnetic field using observed 
+photospheric magnetic fields as a boundary condition.  It is also 
+used for computing Open Field and PFCS models.  
+It has been (and continues to be) used for numerous studies of coronal
+ structure and dynamics and is the potential field solver for the 
+WSA model in the CORHEL software suite publicly hosted at 
+NASA's Community Coordinated Modeling Center (CCMC)
+(https://ccmc.gsfc.nasa.gov).  
+POT3D has previously been released as part of the 
+Standard Performance Evaluation Corporation's (SPEC) 
+beta version of the SPEChpc^{TM} 2021 
+benchmark suites (https://www.spec.org/hpc2021).
+
 ### HOW TO BUILD ###
 
 Modify "build.sh" to set the proper HDF5 library paths/flags   
