@@ -15,8 +15,8 @@
 #HDF5_INCLUDE_DIR="/usr/include/hdf5/serial"
 #HDF5_LIB_DIR="/usr/lib/x86_64-linux-gnu"
 
-HDF5_INCLUDE_DIR="/opt/psi/nv/ext_deps/deps/hdf5/include"
-HDF5_LIB_DIR="/opt/psi/nv/ext_deps/deps/hdf5/lib"
+HDF5_INCLUDE_DIR="/opt/psi/gnu/ext_deps/deps/hdf5/include"
+HDF5_LIB_DIR="/opt/psi/gnu/ext_deps/deps/hdf5/lib"
 
 ###########################################################################
 # Please set the HDF5 linker flags to match your installed version of hdf5.
@@ -34,8 +34,7 @@ HDF5_LIB_FLAGS="-lhdf5_fortran -lhdf5hl_fortran -lhdf5 -lhdf5_hl"
 #   INTEL (CPU):   FFLAGS="-O3 -fp-model precise -assume byterecl -heap-arrays -xCORE-AVX2 -axCORE-AVX512"
 ###########################################################################
 
-$FFLAGS="-O3 -mtune=native"
-FFLAGS="-O3 -acc=gpu -gpu=cc60,cuda11.1 -Minfo=accel"
+FFLAGS="-O3 -mtune=native"
 
 ###########################################################################
 ###########################################################################

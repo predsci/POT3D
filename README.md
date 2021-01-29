@@ -116,8 +116,8 @@ each validation folder.
 
 ### INPUT PARAMETER OPTIONS FOR POT3D.DAT ###
       
-The following is a list of input parameter options one can set in `pot3d.dat`.
- 
-      
+See the file "Documentation.txt: for a list of supported  
+input parameter options able to be set in `pot3d.dat`.
+
       
       

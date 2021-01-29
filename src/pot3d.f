@@ -44,8 +44,8 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='2.23'
-      character(*), parameter :: update='08/11/2020'
+      character(*), parameter :: vers  ='r2.24'
+      character(*), parameter :: update='01/28/2021'
 c
       end module
 c#######################################################################
@@ -273,9 +273,9 @@ c-----------------------------------------------------------------------
 c ****** MPI variables, processor topology, and processor information.
 c-----------------------------------------------------------------------
 c
+      use mpi
+c      
       implicit none
-c
-      include "mpif.h"
 c
 c ****** Total number of processors.
 c
@@ -554,7 +554,7 @@ c ****** OPEN field options only).
 c
 c ****** Set format for output files.
 c
-      character(3) :: fmt='hdf'
+      character(3) :: fmt='h5'
 c
       logical :: hdf32=.true.
 c
@@ -1008,33 +1008,21 @@ c
         call endrun (.true.)
       end if
 c
+c ****** Set default names of output files (uses default fmt).
+c
+      phifile='phi.'//trim(fmt)
+      br0file='br0.'//trim(fmt)
+      brfile='br.'//trim(fmt)
+      btfile='bt.'//trim(fmt)
+      bpfile='bp.'//trim(fmt)
+      br_photo_file='br_photo.'//trim(fmt)
+      br_photo_original_file='br_photo_original.'//trim(fmt)
+c      
       read (8,topology)
 c
       read (8,inputvars)
 c
       close (8)
-c
-      if (phifile .eq. '') then
-        phifile='phi.'//trim(fmt)
-      end if
-      if (br0file .eq. '') then
-        br0file='br0.'//trim(fmt)
-      end if
-      if (brfile .eq. '') then
-        brfile='br.'//trim(fmt)
-      end if
-      if (btfile .eq. '') then
-        btfile='bt.'//trim(fmt)
-      end if
-      if (bpfile .eq. '') then
-        bpfile='bp.'//trim(fmt)
-      end if
-      if (br_photo_file .eq. '') then
-        br_photo_file='br_photo.'//trim(fmt)
-      end if
-      if (br_photo_original_file .eq. '') then
-        br_photo_original_file='br_photo_original.'//trim(fmt)
-      end if
 c
       nr_g=nr
       nt_g=nt
@@ -4208,7 +4196,7 @@ c ****** Write the boundary flux (before the sign flip) to a file
 c ****** if requested.
 c
         if (iamp0) then
-          if (br_photo_original_file.ne.' ') then
+          if (br_photo_original_file.ne.'') then
             write (*,*)
             write (*,*) '### COMMENT from SET_FLUX:'
             write (*,*)
@@ -7372,7 +7360,7 @@ c
 c
 c ****** Potential.
 c
-      if (phifile.ne.' ') then
+      if (phifile.ne.'') then
 !$acc update self(phi)
 c
 c ****** Allocate the global array PHI_G (on processor IPROC0).
@@ -7415,7 +7403,7 @@ c
 c
 c ****** Br.
 c
-      if (brfile.ne.' ') then
+      if (brfile.ne.'') then
 !$acc update self(br)
 c
         if (.not.final) then
@@ -7451,7 +7439,7 @@ c
 c
 c ****** Bt.
 c
-      if (btfile.ne.' ') then
+      if (btfile.ne.'') then
 !$acc update self(bt)
 c
         if (.not.final) then
@@ -7488,7 +7476,7 @@ c
 c
 c ****** Bp.
 c
-      if (bpfile.ne.' ') then
+      if (bpfile.ne.'') then
 !$acc update self(bp)
 c
         if (.not.final) then

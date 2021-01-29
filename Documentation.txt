@@ -1,0 +1,65 @@
+### INPUT PARAMETER OPTIONS FOR POT3D.DAT ###
+      
+The following is a list of supported input parameter options  
+able to be set in `pot3d.dat`:
+
+nr:   Grid resolution in the `r` direction.
+nt:   Grid resolution in the `theta` direction.
+np:   Grid resolution in the `phi` direction.
+
+option:   Run type.  Options are:
+         'ss'      Potential Field Source Surface 
+         'open'    Open field.  Used for current sheet (CS)
+                   and fully open field runs.
+                   Result will be unsigned.
+         'closed'  Potential field with a closed-wall
+                   outer boundary condition.
+
+
+br0file:  ='br_input.h5'       ! 2D Br file at r0.
+  phishift=0.0                ! Apply a phi shift to input data.
+  do_not_balance_flux=.false. ! Choose to not balance flux 
+                              !   (option `open` and `ss` only)
+!
+! Domain (radial).
+!
+  r0=1.0
+  r1=2.5
+!
+! Grid specification
+!
+  rfrac=0.0,1.0
+  drratio=2.5
+  nfrmesh=0
+!
+  tfrac=0.00
+  dtratio=1.0
+  nftmesh=0
+!
+  pfrac=0.00
+  dpratio=1.0
+  nfpmesh=0
+!
+! Output options. 
+!
+  brfile='br_pfss.h5'       ! Br 3D output file name
+  btfile='bt_pfss.h5'       ! Bt 3D output file name
+  bpfile='bp_pfss.h5'       ! Bp 3D output file name
+  br_photo_file=''          ! 2D Br@r=r0 output file name 
+                              !  (after interp/flux-balance)
+  br_photo_original_file='' ! 2D Br@r=r0 output file name 
+                              ! (before sign change for option `open`)
+  phifile=''                ! PHI 3D output file name
+  hdf32=.false.             ! Output precision (set .false. for 64-bit)
+!
+! Solver options.
+!
+  ifprec=2              ! Preconditioner (use 2 for CPU, 1 for GPU)
+  epscg=1.e-9           ! Solver tolerance.
+  ncghist=0             ! Flag to output solver iteration information.
+  ncgmax=10000000       ! Maximum allowed solver iterations.
+!
+! Debugging flag.
+!
+  idebug=0
+      

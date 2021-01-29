@@ -1,0 +1,63 @@
+ &topology
+!
+! Grid size (r,theta,phi).
+!
+  nr=133
+  nt=181
+  np=451
+ /
+ &inputvars
+!
+! Run type.
+!
+  option='open'
+!
+! Input options.
+!
+  br0file='br_rss.h5'       ! 2D Br file at r0.
+  phishift=0.0                ! Apply a phi shift to input data.
+  do_not_balance_flux=.false. ! Choose to not balance flux 
+                              !   (option `open` and `ss` only)
+!
+! Domain (radial).
+!
+  r0=2.5
+  r1=20.0
+!
+! Grid specification
+!
+  rfrac=0.0,1.0
+  drratio=40.0
+  nfrmesh=5
+!
+  tfrac=0.00,0.50,1.00
+  dtratio=0.5,2.0
+  nftmesh=5
+!
+  pfrac=0.00
+  dpratio=1.0
+  nfpmesh=5
+!
+! Output options. 
+!
+  brfile='br_cs.h5'       ! Br 3D output file name
+  btfile='bt_cs.h5'       ! Bt 3D output file name
+  bpfile='bp_cs.h5'       ! Bp 3D output file name
+  br_photo_file=''          ! 2D Br@r=r0 output file name 
+                              !  (after interp/flux-balance)
+  br_photo_original_file='' ! 2D Br@r=r0 output file name 
+                              ! (before sign change for option `open`)
+  phifile=''                ! PHI 3D output file name
+  hdf32=.false.             ! Output precision (set .false. for 64-bit)
+!
+! Solver options.
+!
+  ifprec=2              ! Preconditioner (use 2 for CPU, 1 for GPU)
+  epscg=1.e-9           ! Solver tolerance.
+  ncghist=0             ! Flag to output solver iteration information.
+  ncgmax=10000000       ! Maximum allowed solver iterations.
+!
+! Debugging flag.
+!
+  idebug=0
+ /
