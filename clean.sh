@@ -1,6 +1,7 @@
 #!/bin/bash
 
 rm testsuite/validation/run/* 2>/dev/null
+touch testsuite/validation/run/empty
 rm bin/pot3d 2>/dev/null
 
 cd src/

@@ -4,8 +4,6 @@ POT3D_HOME=${PWD}/..
 TEST="$1"
 NP="$2"
 
-#Check for test existing...
-
 cp ${POT3D_HOME}/testsuite/${TEST}/input/* ${POT3D_HOME}/testsuite/${TEST}/run/
 cd ${POT3D_HOME}/testsuite/${TEST}/run
 

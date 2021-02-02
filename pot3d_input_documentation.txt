@@ -1,0 +1,93 @@
+!
+! ### INPUT PARAMETER OPTIONS FOR POT3D ###
+! ### THIS FILE IS A VALID POT3D.DAT INPUT FILE! ###
+!
+ &topology
+!
+  nr=133                      ! Grid resolution in the `r` direction.
+  nt=181                      ! Grid resolution in the `theta` direction.
+  np=451                      ! Grid resolution in the `phi` direction.
+ /
+!
+ &inputvars
+!
+! ****** Run type.
+!
+  option='ss'                 !  'ss'      Potential Field Source Surface (PFSS)
+                              !  'closed'  Potential Field with a closed-wall outer 
+                              !            boundary condition (requires flux balance).
+                              !  'open'    Open field.  Used for current sheet (CS)
+                              !            and fully open field runs.
+                              !            Note! Resulting B field will be unsigned.
+!
+! ****** Input options.
+!
+  br0file='br_input.h5'       ! Filename (HDF5) of the input 2D (theta,phi) Br magnetic field at r0.
+!
+  phishift=0.0                ! Apply an optional phi shift (radians) to the input Br field at r0.
+!
+  do_not_balance_flux=.false. ! Choose whether or not to balance the flux of the input Br at r0.
+                              !   .false.   Balance the flux (additive)
+                              !   .true.    Do not balance the flux. 
+                              !             Note! Cannot use with option=`closed`!
+!
+! ****** Domain (radial).
+!
+  r0=1.0                      ! Coordinate of the lower radial boundary.
+  r1=2.5                      ! Coordinate of the upper radial boundary.
+!
+! ****** Grid cell size specifications.
+!
+  rfrac=0.0,1.0               ! 
+  drratio=2.5                 !
+  nfrmesh=0                   !
+!
+  tfrac=0.00                  !
+  dtratio=1.0                 !
+  nftmesh=0                   !
+!
+  pfrac=0.00                  !
+  dpratio=1.0                 !
+  nfpmesh=0                   !
+!
+! ****** Output options. 
+!  
+!   Note!  For all output filenames, set to '' to not write the output.
+!
+  brfile='br_pfss.h5'         ! Filename to write 3D Br field.
+!
+  btfile='bt_pfss.h5'         ! Filename to write 3D Bt field.
+!
+  bpfile='bp_pfss.h5'         ! Filename to write 3D Bp field.
+!
+  br_photo_file=''            ! Filename to write 2D Br@r=r0 (after interp/flux-balance).
+!
+  br_photo_original_file=''   ! Filename to write 2D Br@r=r0 (option=`open1 only,   
+                              !                               writes Br before sign change).
+!
+  phifile=''                  ! Filename to write 3D PHI potential.
+!
+  hdf32=.false.               ! Output precision:
+                              !   .true.   Single-precision (32-bit) output.
+                              !   .false.  Double-precision (64-bit) output.
+!
+! ****** Solver options.
+!
+  ifprec=2                    ! Preconditioner method:
+                              !   1    Diagonal (use for GPU runs)
+                              !   2    ILUB0    (use for CPU runs)
+!
+  epscg=1.e-9                 ! Solver convergence tolerance, |residual|/|right-hand-side|.
+!
+  ncghist=0                   ! Iteration information.
+                              !   0    Only writes out total iterations.
+                              !   1    Writes out residuals for all iterations.
+!
+  ncgmax=10000000             ! Maximum solver iterations.  
+                              ! If solver does not converge in ncgmax iterations,
+                              ! the code will exit with an error.
+!
+! ****** Debugging flag.
+!
+  idebug=0                    ! Output various debugging information during run.
+      
