@@ -13,12 +13,12 @@
 !
 ! ****** Run type.
 !
-  option='ss'                 !  'ss'      Potential Field Source Surface (PFSS)
-                              !  'closed'  Potential Field with a closed-wall outer
-                              !            boundary condition (requires flux balance).
-                              !  'open'    Open field.  Used for current sheet (CS)
-                              !            and fully open field runs.
-                              !            Note! Resulting B field will be unsigned.
+  option='ss'                 !  'ss'        Potential Field Source Surface (PFSS)
+                              !  'potential' Potential Field with a closed-wall outer
+                              !              boundary condition (requires flux balance).
+                              !  'open'      Open field.  Used for current sheet (CS)
+                              !              and fully open field runs.
+                              !              Note! Resulting B field will be unsigned.
 !
 ! ****** Input options.
 !
