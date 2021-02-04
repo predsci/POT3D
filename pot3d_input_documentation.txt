@@ -14,7 +14,7 @@
 ! ****** Run type.
 !
   option='ss'                 !  'ss'      Potential Field Source Surface (PFSS)
-                              !  'closed'  Potential Field with a closed-wall outer 
+                              !  'closed'  Potential Field with a closed-wall outer
                               !            boundary condition (requires flux balance).
                               !  'open'    Open field.  Used for current sheet (CS)
                               !            and fully open field runs.
@@ -28,7 +28,7 @@
 !
   do_not_balance_flux=.false. ! Choose whether or not to balance the flux of the input Br at r0.
                               !   .false.   Balance the flux (additive)
-                              !   .true.    Do not balance the flux. 
+                              !   .true.    Do not balance the flux.
                               !             Note! Cannot use with option=`closed`!
 !
 ! ****** Domain (radial).
@@ -38,20 +38,35 @@
 !
 ! ****** Grid cell size specifications.
 !
-  rfrac=0.0,1.0               ! 
-  drratio=2.5                 !
-  nfrmesh=0                   !
+  rfrac=0.0,1.0               ! Normalized positions of grid segment boundaries
+                              ! (as a fraction of domain size) for radial grid.
 !
-  tfrac=0.00                  !
-  dtratio=1.0                 !
-  nftmesh=0                   !
+  drratio=2.5                 ! Ratio of grid spacing at the end of each segment to that
+                              ! at the beginning for the radial grid
+                              ! [ length(drratio) = length(rfrac)-1 ].
 !
-  pfrac=0.00                  !
-  dpratio=1.0                 !
-  nfpmesh=0                   !
+  nfrmesh=0                   ! Number of times to filter/smooth the radial grid spacing.
 !
-! ****** Output options. 
-!  
+  tfrac=0.0,1.0               ! Normalized positions of grid segment boundaries
+                              ! (as a fraction of domain size) for theta grid.
+!
+  dtratio=1.0                 ! Ratio of grid spacing at the end of each segment to that
+                              ! at the beginning for the theta grid
+                              ! [ length(dtratio) = length(tfrac)-1 ].
+!
+  nftmesh=0                   ! Number of times to filter/smooth the theta grid spacing.
+!
+  pfrac=0.0,1.0               ! Normalized positions of grid segment boundaries
+                              ! (as a fraction of domain size) for phi grid.
+!
+  dpratio=1.0                 ! Ratio of grid spacing at the end of each segment to that
+                              ! at the beginning for the phi grid
+                              ! [ length(dtratio) = length(tfrac)-1 ].
+!
+  nfpmesh=0                   ! Number of times to filter/smooth the phi grid spacing.
+!
+! ****** Output options.
+!
 !   Note!  For all output filenames, set to '' to not write the output.
 !
   brfile='br_pfss.h5'         ! Filename to write 3D Br field.
@@ -62,7 +77,7 @@
 !
   br_photo_file=''            ! Filename to write 2D Br@r=r0 (after interp/flux-balance).
 !
-  br_photo_original_file=''   ! Filename to write 2D Br@r=r0 (option=`open1 only,   
+  br_photo_original_file=''   ! Filename to write 2D Br@r=r0 (option='open' only,
                               !                               writes Br before sign change).
 !
   phifile=''                  ! Filename to write 3D PHI potential.
@@ -83,11 +98,11 @@
                               !   0    Only writes out total iterations.
                               !   1    Writes out residuals for all iterations.
 !
-  ncgmax=10000000             ! Maximum solver iterations.  
+  ncgmax=10000000             ! Maximum solver iterations.
                               ! If solver does not converge in ncgmax iterations,
                               ! the code will exit with an error.
 !
 ! ****** Debugging flag.
 !
   idebug=0                    ! Output various debugging information during run.
-      
+
