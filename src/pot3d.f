@@ -44,8 +44,8 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='r2.24'
-      character(*), parameter :: update='01/28/2021'
+      character(*), parameter :: vers  ='r3.0.0'
+      character(*), parameter :: update='02/09/2021'
 c
       end module
 c#######################################################################
@@ -8540,5 +8540,9 @@ c ### Version 2.23, 08/11/2020, file pot3d.f, modified by RC:
 c
 c       - Small bug fix for default output file names and 
 c         format option fmt.
+c
+c ### Version 3.0.0, 02/10/2021, file pot3d.f, modified by RC:
+c
+c       - Changed version number scheme to semantic versioning.
 c
 c#######################################################################
