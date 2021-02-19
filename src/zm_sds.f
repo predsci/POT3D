@@ -1992,8 +1992,9 @@ c
 c
 c ****** Get the number of dimensions.
 c
-      int_tmp(1)=s%ndim
-      call rdint (1,1,int_tmp,ierr)
+      call rdint (1,1,int_tmp(1),ierr)
+      s%ndim=int_tmp(1)
+c      
       if (ierr.ne.0) go to 910
 c
       if (s%ndim.lt.1.or.s%ndim.gt.mxdim) then
@@ -2019,8 +2020,8 @@ c
 c
 c ****** Check if the scales are present.
 c
-      int_tmp(1)=ifscale
-      call rdint (1,1,int_tmp,ierr)
+      call rdint (1,1,int_tmp(1),ierr)
+      ifscale=int_tmp(1)
       if (ierr.ne.0) go to 910
 c
       s%scale=ifscale.ne.0
@@ -2286,8 +2287,8 @@ c
 c
 c ****** Write the number of dimensions.
 c
-      int_tmp=s%ndim
-      call wrint (1,1,int_tmp,ierr)
+      int_tmp(1)=s%ndim
+      call wrint (1,1,int_tmp(1),ierr)
       if (ierr.ne.0) go to 900
 c
 c ****** Write the dimensions.
@@ -2300,16 +2301,16 @@ c
 c ****** Write the scales.
 c
       if (s%scale) then
-        int_tmp=1
-        call wrint (1,1,int_tmp,ierr)
+        int_tmp(1)=1
+        call wrint (1,1,int_tmp(1),ierr)
         if (ierr.ne.0) go to 900
         do i=1,s%ndim
           call wrfp (1,s%dims(i),s%scales(i)%f,fmt,ierr)
           if (ierr.ne.0) go to 900
         enddo
       else
-        int_tmp=0
-        call wrint (1,1,int_tmp,ierr)
+        int_tmp(1)=0
+        call wrint (1,1,int_tmp(1),ierr)
         if (ierr.ne.0) go to 900
       end if
 c
