@@ -1,5 +1,10 @@
-c
-c-----------------------------------------------------------------------
+c#######################################################################
+c  _____   ____ _______ ____  _____
+c |  __ \ / __ \__   __|___ \|  __ \ 
+c | |__) | |  | | | |    __) | |  | |
+c |  ___/| |  | | | |   |__ <| |  | |
+c | |    | |__| | | |   ___) | |__| |
+c |_|     \____/  |_|  |____/|_____/
 c
 c ****** POT3D: Find the 3D potential magnetic field outside a sphere.
 c
@@ -17,7 +22,7 @@ c        www.predsci.com
 c        San Diego, California, USA 92121
 c
 c#######################################################################
-c Copyright 2018 Predictive Science Inc.
+c Copyright 2021 Predictive Science Inc.
 c
 c Licensed under the Apache License, Version 2.0 (the "License");
 c you may not use this file except in compliance with the License.
@@ -33,9 +38,11 @@ c See the License for the specific language governing permissions and
 c limitations under the License.
 c#######################################################################
 c
-c-----------------------------------------------------------------------
+c#######################################################################
 c
       module ident
+c
+c-----------------------------------------------------------------------
 c
       implicit none
 c
@@ -44,14 +51,18 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='r3.0.0'
-      character(*), parameter :: update='02/09/2021'
+      character(*), parameter :: vers  ='r3.1.0'
+      character(*), parameter :: update='04/14/2021'
 c
       end module
 c#######################################################################
       module constants
 c
+c-----------------------------------------------------------------------
+c
       use number_types
+c
+c-----------------------------------------------------------------------
 c
       implicit none
 c
@@ -79,40 +90,11 @@ c
 c
       end module
 c#######################################################################
-      module local_dims_ri
+      module local_dims_r
 c
 c-----------------------------------------------------------------------
 c ****** Local number of mesh points and indices in the r direction
-c ****** for the (inner) radial mesh.
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c ****** Local mesh size.
-c
-      integer :: nr,nrm1
-c
-c ****** Dimensions of arrays on the "main" mesh.
-c
-      integer :: nrm
-c
-c ****** Indices of start and end points in the global mesh
-c ****** belonging to this processor.
-c
-      integer :: i0_g,i1_g
-c
-c ****** Flags to indicate whether this processor has points
-c ****** on the physical boundaries.
-c
-      logical :: rb0,rb1
-c
-      end module
-c#######################################################################
-      module local_dims_ro
-c
-c-----------------------------------------------------------------------
-c ****** Local number of mesh points and indices in the r direction
-c ****** for the outer radial mesh.
+c ****** for the radial mesh.
 c-----------------------------------------------------------------------
 c
       implicit none
@@ -204,30 +186,10 @@ c
 c
       end module
 c#######################################################################
-      module local_mesh_ri
+      module local_mesh_r
 c
 c-----------------------------------------------------------------------
-c ****** Local (inner) mesh for the r dimension.
-c-----------------------------------------------------------------------
-c
-      use number_types
-c
-      implicit none
-c
-      real(r_typ), dimension(:), allocatable :: r,r2,rh,dr,drh
-      real(r_typ) :: dr1
-c
-c ****** Inverse quantities (for efficiency).
-c
-      real(r_typ), dimension(:), allocatable :: r_i,rh_i
-      real(r_typ), dimension(:), allocatable :: dr_i,drh_i
-c
-      end module
-c#######################################################################
-      module local_mesh_ro
-c
-c-----------------------------------------------------------------------
-c ****** Local outer mesh for the r dimension.
+c ****** Local mesh for the r dimension.
 c-----------------------------------------------------------------------
 c
       use number_types
@@ -235,6 +197,7 @@ c
       implicit none
 c
       real(r_typ), dimension(:), allocatable :: r,r2,rh,dr,drh
+      real(r_typ) :: dr1,drn
 c
 c ****** Inverse quantities (for efficiency).
 c
@@ -391,12 +354,8 @@ c
 c
 c ****** Mapping structures for the different mesh types.
 c
-      type(map_struct), dimension(:), pointer :: map_rih
-      type(map_struct), dimension(:), pointer :: map_rim
-c
-      type(map_struct), dimension(:), pointer :: map_roh
-      type(map_struct), dimension(:), pointer :: map_rom
-c
+      type(map_struct), dimension(:), pointer :: map_rh
+      type(map_struct), dimension(:), pointer :: map_rm
       type(map_struct), dimension(:), pointer :: map_th
       type(map_struct), dimension(:), pointer :: map_tm
       type(map_struct), dimension(:), pointer :: map_ph
@@ -441,32 +400,15 @@ c
 c
       implicit none
 c
-c ****** Potential (inner) solution array and cg temp array.
+c ****** Potential solution array and cg temp array.
 c
       real(r_typ), dimension(:,:,:), allocatable :: phi
       real(r_typ), dimension(:,:,:), allocatable :: x_ax
 c
-c ****** Potential (outer) solution array.
-c
-      real(r_typ), dimension(:,:,:), allocatable :: phio
-c
-c ****** Boundary radial magnetic field array.
+c ****** Boundary radial magnetic field arrays.
 c
       real(r_typ), dimension(:,:), allocatable :: br0
-c
-c ****** Boundary condition for the potential at the upper
-c ****** radial boundary for the inner solution.
-c
-      real(r_typ), dimension(:,:), allocatable :: phi1
-c
-c ****** Magnetic field at the source surface.
-c
-      real(r_typ), dimension(:,:), allocatable :: br_ss
-c
-c ****** Potential at the lower radial boundary of the
-c ****** outer solution.
-c
-      real(r_typ), dimension(:,:), allocatable :: phio_ss
+      real(r_typ), dimension(:,:), allocatable :: br1
 c
 c ****** Arrays used in polar boundary conditions.
 c
@@ -495,8 +437,9 @@ c ****** CG field solver parameters.
 c-----------------------------------------------------------------------
 c
       integer :: ifprec=1
-      integer :: ncgmax=500
+      integer :: ncgmax=5000
       integer :: ncghist=0
+      integer :: ncgflush=25
       real(r_typ) :: epscg=1.e-9
 c
 c-----------------------------------------------------------------------
@@ -532,15 +475,6 @@ c ****** Select between 'potential', 'open', and 'source-surface'.
 c
       character(16) :: option='potential'
 c
-c ****** Requested source-surface radius.
-c
-      real(r_typ) :: rss=2.5_r_typ
-c
-c ****** Number of iterations to perform for the coupled
-c ****** inner/outer solve.
-c
-      integer :: niter=10
-c
 c ****** Interval at which to dump diagonstics during the
 c ****** iteration for the source-surface plus current-sheet
 c ****** solution.
@@ -558,6 +492,12 @@ c
 c
       logical :: hdf32=.true.
 c
+c ***** Validation run (tilted dipole).
+c
+      logical :: validation_run=.false.
+c
+      real(r_typ) :: dipole_angle=0.7853981633974483_r_typ
+c
       end module
 c#######################################################################
       module solve_params
@@ -573,24 +513,6 @@ c
 c ****** Boundary condition switch at r=R1.
 c
       real(r_typ) :: pm_r1
-c
-c ****** Index of the radial cell that contains the source surface,
-c ****** such that RH(ISS).le.RSS.lt.RH(ISS+1).
-c
-      integer :: iss=-1
-c
-c ****** Actual source-surface radius.
-c
-      real(r_typ) :: rss_actual
-c
-c ****** Flag to indicate whether an outer solution will
-c ****** be performed.
-c
-      logical :: outer_solve_needed=.false.
-c
-c ****** Flag to indicate the current solve region.
-c
-      logical :: current_solve_inner=.true.
 c
       end module
 c#######################################################################
@@ -640,27 +562,6 @@ c
 c
       integer :: idebug=0
 c
-      end module
-c#######################################################################
-      module seam_interface
-      interface
-        subroutine seam_outer (a)
-        use number_types
-        implicit none
-        real(r_typ), dimension(:,:,:) :: a
-        end subroutine
-      end interface
-      end module
-c#######################################################################
-      module seam_3d_interface
-      interface
-        subroutine seam_3d (seam1,seam2,seam3,a)
-        use number_types
-        implicit none
-        logical :: seam1,seam2,seam3
-        real(r_typ), dimension(:,:,:) :: a
-        end subroutine
-      end interface
       end module
 c#######################################################################
       module assemble_array_interface
@@ -790,47 +691,52 @@ c ****** Set the global meshes.
 c
       call set_global_mesh
 c
-c ****** Set the location of the source surface (only when the
-c ****** source-surface plus current-sheet model is being used).
-c
-      if (outer_solve_needed) then
-        call set_ss_location
-      end if
-c
 c ****** Decompose the mesh.
 c
-      call decompose_mesh_ri
+      call decompose_mesh_r
       call decompose_mesh_tp
-      if (outer_solve_needed) then
-        call decompose_mesh_ro
-      end if
 c
 c ****** Allocate local arrays.
 c
-      call allocate_local_arrays_ri
+      call allocate_local_arrays_r
       call allocate_local_arrays_tp
-      if (outer_solve_needed) then
-        call allocate_local_arrays_ro
-      end if
 c
 c ****** Set the local meshes.
 c
-      call set_local_mesh_ri
+      call set_local_mesh_r
       call set_local_mesh_tp
-      if (outer_solve_needed) then
-        call set_local_mesh_ro
-      end if
 c
 c ****** Print decomposition diagnostics.
 c
       call decomp_diags
-      if (outer_solve_needed) then
-        call decomp_diags_outer
+c
+c ****** Initialize the flux and if validating, write analytic solution.
+c
+      if (validation_run) then
+        if (iamp0) then
+          write (*,*)
+          write (*,*) '### COMMENT from POT3D:'
+          write (*,*) '### Validation run requested.'
+          write (*,*) '### Ignoring br input file,'
+          write (*,*) '### setting HDF32=.FALSE.,'
+          write (*,*) '### and overriding output filenames.'
+          write (9,*)
+          write (9,*) '### COMMENT from POT3D:'
+          write (9,*) '### Validation run requested.'
+          write (9,*) '### Ignoring br input file'
+          write (9,*) '### setting HDF32=.FALSE.,'
+          write (9,*) '### and overriding output filenames.'
+        end if
+        hdf32=.false.
+        brfile='br_solved.'//trim(fmt)
+        btfile='bt_solved.'//trim(fmt)
+        bpfile='bp_solved.'//trim(fmt)
+        phifile='phi_solved.'//trim(fmt)
+        call set_validation_flux
+        call write_validation_solution
+      else
+        call set_flux
       end if
-c
-c ****** Initialize the flux.
-c
-      call set_flux
 c
       call timer_off (t_startup)
 c
@@ -839,44 +745,17 @@ c
       if (iamp0) then
         write (*,*)
         write (*,*) '### COMMENT from POT3D:'
-        write (*,*) '### Starting CG solve.'
+        write (*,*) '### Starting PCG solve.'
         write (9,*)
         write (9,*) '### COMMENT from POT3D:'
-        write (9,*) '### Starting CG solve.'
+        write (9,*) '### Starting PCG solve.'
       end if
       call flush_output_file(outfile,9)
 c
       call timer_on
-      if (.not.outer_solve_needed) then
-        call potfld
-      else
-        if (iamp0) then
-          write (*,*)
-          write (*,*) '### COMMENT from POT3D:'
-          write (*,*) '### Coupled inner/outer solution:'
-          write (9,*)
-          write (9,*) '### COMMENT from POT3D:'
-          write (9,*) '### Coupled inner/outer solution:'
-        end if
-        do i=1,niter
-          if (iamp0) then
-            write (*,*)
-            write (*,100)
-  100       format (80('-'))
-            write (*,*) 'Doing iteration # ',i
-            write (9,*) 'Doing iteration # ',i
-          endif
-          call potfld
-          call get_ss_field
-          call potfld_outer
-          if (ndump.gt.0) then
-            if (mod(i,ndump).eq.0) then
-              call getb
-              call write_solution (.false.)
-            end if
-          end if
-        enddo
-      end if
+c
+      call potfld
+c
       call timer_off (t_solve)
 c
 c ****** Compute B.
@@ -886,7 +765,7 @@ c
 c ****** Write solution to file.
 c
       call timer_on
-      call write_solution (.true.)
+      call write_solution
       call timer_off (t_write_phi)
 c
 c ****** Magnetic energy diagnostics.
@@ -984,8 +863,10 @@ c
      &                     idebug,br0file,phifile,
      &                     brfile,btfile,bpfile,br_photo_file,
      &                     br_photo_original_file,
-     &                     option,rss,niter,ndump,
-     &                     do_not_balance_flux,hdf32
+     &                     option,
+     &                     do_not_balance_flux,hdf32,
+     &                     validation_run,dipole_angle,
+     &                     ncgflush
 c
 c-----------------------------------------------------------------------
 c
@@ -1017,7 +898,7 @@ c
       bpfile='bp.'//trim(fmt)
       br_photo_file='br_photo.'//trim(fmt)
       br_photo_original_file='br_photo_original.'//trim(fmt)
-c      
+c
       read (8,topology)
 c
       read (8,inputvars)
@@ -1243,7 +1124,6 @@ c ****** For a potential field, set d(phi)/dr to zero at r=R1
 c ****** (i.e., the field is tangential to the boundary).
 c
         pm_r1=one
-        outer_solve_needed=.false.
 c
       else if (option.eq.'open') then
 c
@@ -1251,7 +1131,6 @@ c ****** For an open field, set phi to zero at r=R1
 c ****** (i.e., the field is radial there).
 c
         pm_r1=-one
-        outer_solve_needed=.false.
 c
       else if (option.eq.'ss') then
 c
@@ -1259,15 +1138,6 @@ c ****** For a source surface field, set phi to zero at r=R1
 c ****** (i.e., the field is radial there).
 c
         pm_r1=-one
-        outer_solve_needed=.false.
-c
-      else if (option.eq.'ss+cs') then
-c
-c ****** For a source-surface plus current-sheet field, set phi
-c ****** to a specified distribution at r=R1 for the inner solution.
-c
-        pm_r1=-one
-        outer_solve_needed=.true.
 c
       else
         if (iamp0) then
@@ -1281,7 +1151,6 @@ c
           write (*,*) '''potential'''
           write (*,*) '''open'''
           write (*,*) '''ss'''
-          write (*,*) '''ss+cs'''
         end if
         call endrun (.true.)
       end if
@@ -1679,16 +1548,16 @@ c
       return
       end
 c#######################################################################
-      subroutine decompose_mesh_ri
+      subroutine decompose_mesh_r
 c
 c-----------------------------------------------------------------------
 c
-c ****** Decompose the (inner) r mesh between processors.
+c ****** Decompose the r mesh between processors.
 c
 c-----------------------------------------------------------------------
 c
       use global_dims
-      use local_dims_ri
+      use local_dims_r
       use decomposition
       use solve_params
       use mpidefs
@@ -1707,11 +1576,7 @@ c-----------------------------------------------------------------------
 c
 c ****** Decompose the r dimension.
 c
-      if (outer_solve_needed) then
-        npts=iss+1
-      else
-        npts=nr_g
-      end if
+      npts=nr_g
 c
       call decompose_dimension (npts,nproc_r,mp_r,ierr)
       if (ierr.ne.0) then
@@ -1775,8 +1640,8 @@ c
 c
 c ****** Store the mapping structure (for this processor).
 c
-      allocate (map_rih(0:nproc-1))
-      allocate (map_rim(0:nproc-1))
+      allocate (map_rh(0:nproc-1))
+      allocate (map_rm(0:nproc-1))
 c
       if (rb0) then
         i0_h=1
@@ -1796,157 +1661,23 @@ c
       end if
       i1_m=nrm1
 c
-      map_rih(iproc)%i0=i0_h
-      map_rih(iproc)%i1=i1_h
+      map_rh(iproc)%i0=i0_h
+      map_rh(iproc)%i1=i1_h
 c
-      map_rim(iproc)%i0=i0_m
-      map_rim(iproc)%i1=i1_m
+      map_rm(iproc)%i0=i0_m
+      map_rm(iproc)%i1=i1_m
 c
-      map_rih(iproc)%offset=i0_g+map_rih(iproc)%i0-1
-      map_rih(iproc)%n=map_rih(iproc)%i1-map_rih(iproc)%i0+1
+      map_rh(iproc)%offset=i0_g+map_rh(iproc)%i0-1
+      map_rh(iproc)%n=map_rh(iproc)%i1-map_rh(iproc)%i0+1
 c
-      map_rim(iproc)%offset=i0_g+map_rim(iproc)%i0-1
-      map_rim(iproc)%n=map_rim(iproc)%i1-map_rim(iproc)%i0+1
-c
-c ****** Gather the mapping information by communicating among
-c ****** all processors.
-c
-      call gather_mapping_info (map_rih)
-      call gather_mapping_info (map_rim)
-c
-      return
-      end
-c#######################################################################
-      subroutine decompose_mesh_ro
-c
-c-----------------------------------------------------------------------
-c
-c ****** Decompose the outer r mesh between processors.
-c
-c-----------------------------------------------------------------------
-c
-      use global_dims
-      use local_dims_ro
-      use decomposition
-      use solve_params
-      use mpidefs
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer :: ierr,i,npts
-      integer :: i0_h,i1_h,i0_m,i1_m
-      integer, dimension(nproc_r) :: mp_r
-c
-c-----------------------------------------------------------------------
-c
-c ****** Decompose the r dimension.
-c
-      npts=nr_g-iss+1
-c
-      call decompose_dimension (npts,nproc_r,mp_r,ierr)
-      if (ierr.ne.0) then
-        if (iamp0) then
-          write (*,*)
-          write (*,*) '### ERROR in DECOMPOSE_MESH:'
-          write (*,*) '### Anomaly in decomposing the mesh'//
-     &                ' between processors.'
-          write (*,*) '### Could not decompose the r mesh.'
-          write (*,*) 'Number of mesh points in r = ',npts
-          write (*,*) 'Number of processors along r = ',nproc_r
-        end if
-        call endrun (.true.)
-      end if
-c
-c ****** Check that the resulting mesh topology is valid.
-c
-      call check_mesh_topology (nproc_r,mp_r,1,'r')
-c
-c ****** Compute the mapping between the processor decomposition
-c ****** and the global mesh.
-c
-c ****** Note that there is a two-point overlap in the mesh
-c ****** between adjacent processors in r.
-c
-      i0_g=iss
-      do i=1,iproc_r
-        i0_g=i0_g+mp_r(i)
-      enddo
-      nr=mp_r(iproc_r+1)+2
-      i1_g=i0_g+nr-1
-c
-      nrm1=nr-1
-c
-c ****** Set the flags to indicate whether this processor has
-c ****** points on the physical boundaries.
-c
-      if (iproc_r.eq.0) then
-        rb0=.true.
-      else
-        rb0=.false.
-      end if
-c
-      if (iproc_r.eq.nproc_r-1) then
-        rb1=.true.
-      else
-        rb1=.false.
-      end if
-c
-c ****** Set the dimensions of arrays for the "main" meshes
-c ****** (i.e., the "m" mesh) for which normal derivatives are
-c ****** needed (e.g., v).  These vary on different processors,
-c ****** depending if they are left-boundary, internal, or
-c ****** right-boundary processors.
-c
-      if (rb1) then
-        nrm=nrm1
-      else
-        nrm=nr
-      end if
-c
-c ****** Store the mapping structure (for this processor).
-c
-      allocate (map_roh(0:nproc-1))
-      allocate (map_rom(0:nproc-1))
-c
-      if (rb0) then
-        i0_h=1
-      else
-        i0_h=2
-      end if
-      if (rb1) then
-        i1_h=nr
-      else
-        i1_h=nrm1
-      end if
-c
-      if (rb0) then
-        i0_m=1
-      else
-        i0_m=2
-      end if
-      i1_m=nrm1
-c
-      map_roh(iproc)%i0=i0_h
-      map_roh(iproc)%i1=i1_h
-c
-      map_rom(iproc)%i0=i0_m
-      map_rom(iproc)%i1=i1_m
-c
-      map_roh(iproc)%offset=i0_g+map_roh(iproc)%i0-1
-      map_roh(iproc)%n=map_roh(iproc)%i1-map_roh(iproc)%i0+1
-c
-      map_rom(iproc)%offset=i0_g+map_rom(iproc)%i0-1
-      map_rom(iproc)%n=map_rom(iproc)%i1-map_rom(iproc)%i0+1
+      map_rm(iproc)%offset=i0_g+map_rm(iproc)%i0-1
+      map_rm(iproc)%n=map_rm(iproc)%i1-map_rm(iproc)%i0+1
 c
 c ****** Gather the mapping information by communicating among
 c ****** all processors.
 c
-      call gather_mapping_info (map_roh)
-      call gather_mapping_info (map_rom)
+      call gather_mapping_info (map_rh)
+      call gather_mapping_info (map_rm)
 c
       return
       end
@@ -2389,14 +2120,14 @@ c#######################################################################
 c
 c-----------------------------------------------------------------------
 c
-c ****** Print diagnostics about the (inner) mesh decomposition.
+c ****** Print diagnostics about the mesh decomposition.
 c
 c-----------------------------------------------------------------------
 c
       use global_dims
       use global_mesh
-      use local_dims_ri
-      use local_mesh_ri
+      use local_dims_r
+      use local_mesh_r
       use local_dims_tp
       use local_mesh_tp
       use mpidefs
@@ -2476,11 +2207,6 @@ c
         call MPI_Barrier (comm_all,ierr)
         if (irank.eq.iproc) then
           write (*,*)
-          write (*,100)
-          if (outer_solve_needed) then
-            write (*,*)
-            write (*,*) '### Inner radial domain:'
-          end if
           write (*,*)
           write (*,*) 'Rank id = ',iproc
           write (*,*) 'nr = ',nr
@@ -2515,97 +2241,6 @@ c
             write (*,*) 'phi mesh:'
             write (*,*) p
           end if
-          if (.not.outer_solve_needed) then
-            if (irank.eq.nproc-1) then
-              write (*,*)
-              write (*,100)
-            end if
-  100       format (80('-'))
-          end if
-        end if
-      enddo
-c
-      return
-      end
-c#######################################################################
-      subroutine decomp_diags_outer
-c
-c-----------------------------------------------------------------------
-c
-c ****** Print diagnostics about the mesh decomposition for the
-c ****** outer radial domain.
-c
-c-----------------------------------------------------------------------
-c
-      use global_dims
-      use global_mesh
-      use local_dims_ro
-      use local_mesh_ro
-      use local_dims_tp
-      use local_mesh_tp
-      use mpidefs
-      use debug
-      use decomposition
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer :: ierr
-      integer :: irank
-c
-c-----------------------------------------------------------------------
-c
-      if (idebug.le.1) return
-c
-      do irank=0,nproc-1
-        call MPI_Barrier (comm_all,ierr)
-        if (irank.eq.iproc) then
-          write (*,*)
-          write (*,100)
-          write (*,*)
-          write (*,*) '### Outer radial domain:'
-          write (*,*)
-          write (*,*) 'Processor id = ',iproc
-          write (*,*) 'nr = ',nr
-          write (*,*) 'nt = ',nt
-          write (*,*) 'np = ',np
-          write (*,*) 'i0_g = ',i0_g
-          write (*,*) 'i1_g = ',i1_g
-          write (*,*) 'j0_g = ',j0_g
-          write (*,*) 'j1_g = ',j1_g
-          write (*,*) 'k0_g = ',k0_g
-          write (*,*) 'k1_g = ',k1_g
-          write (*,*) 'Processor index in r    = ',iproc_r
-          write (*,*) 'Processor index in t    = ',iproc_t
-          write (*,*) 'Processor index in p    = ',iproc_p
-          write (*,*) 'Processor to left  in r = ',iproc_rm
-          write (*,*) 'Processor to right in r = ',iproc_rp
-          write (*,*) 'Processor to left  in t = ',iproc_tm
-          write (*,*) 'Processor to right in t = ',iproc_tp
-          write (*,*) 'Processor to left  in p = ',iproc_pm
-          write (*,*) 'Processor to right in p = ',iproc_pp
-          write (*,*)
-          write (*,*) 'Processor rank in MPI_COMM_WORLD = ',iprocw
-          write (*,*) 'Processor rank in COMM_ALL       = ',iproc
-          if (idebug.gt.2) then
-            write (*,*)
-            write (*,*) 'r mesh:'
-            write (*,*) r
-            write (*,*)
-            write (*,*) 'theta mesh:'
-            write (*,*) t
-            write (*,*)
-            write (*,*) 'phi mesh:'
-            write (*,*) p
-          end if
-          if (irank.eq.nproc-1) then
-            write (*,*)
-            write (*,100)
-          end if
-  100     format (80('-'))
         end if
       enddo
 c
@@ -2662,16 +2297,16 @@ c
       return
       end
 c#######################################################################
-      subroutine allocate_local_arrays_ri
+      subroutine allocate_local_arrays_r
 c
 c-----------------------------------------------------------------------
 c
-c ****** Allocate local arrays for the (inner) r dimension.
+c ****** Allocate local arrays for the r dimension and 3D arrays.
 c
 c-----------------------------------------------------------------------
 c
-      use local_dims_ri
-      use local_mesh_ri
+      use local_dims_r
+      use local_mesh_r
       use local_dims_tp
       use fields
 c
@@ -2696,12 +2331,13 @@ c
       allocate (rh_i (nr))
       allocate (drh_i(nr))
 c
-c ****** Allocate the (inner) potential array and cg scratch array.
+c ****** Allocate the potential array and cg scratch array.
 c
       allocate (phi(nr,nt,np))
       allocate (x_ax(nr,nt,np))
       phi(:,:,:)=0.
       x_ax(:,:,:)=0.
+!$acc enter data copyin(phi,x_ax)
 c
 c ****** Allocate polar boundary arrays.
 c
@@ -2709,6 +2345,7 @@ c
       allocate (sum1(nr))
       sum0(:)=0.
       sum1(:)=0.
+!$acc enter data copyin(sum0,sum1)
 c
 c ****** Allocate the local magnetic field arrays.
 c
@@ -2719,49 +2356,7 @@ c
       bt(:,:,:)=0.
       bp(:,:,:)=0.
 c
-      return
-      end
-c#######################################################################
-      subroutine allocate_local_arrays_ro
-c
-c-----------------------------------------------------------------------
-c
-c ****** Allocate local arrays for the (outer) r dimension.
-c
-c-----------------------------------------------------------------------
-c
-      use local_dims_ro
-      use local_mesh_ro
-      use local_dims_tp
-      use fields
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      allocate (r (nrm))
-      allocate (r2 (nrm))
-      allocate (dr(nrm))
-c
-      allocate (rh (nr))
-      allocate (drh(nr))
-c
-c ****** Allocate inverse quantities.
-c
-      allocate (r_i (nrm))
-      allocate (dr_i(nrm))
-c
-      allocate (rh_i (nr))
-      allocate (drh_i(nr))
-c
-c ****** Allocate the (outer) potential array.
-c
-      allocate (phio(nr,nt,np))
-c
-      return
-      end
+      end subroutine
 c#######################################################################
       subroutine allocate_local_arrays_tp
 c
@@ -2774,6 +2369,7 @@ c
       use local_dims_tp
       use local_mesh_tp
       use fields
+      use vars
       use solve_params
 c
 c-----------------------------------------------------------------------
@@ -2816,24 +2412,16 @@ c
       allocate (dp_i (np))
       allocate (dph_i(np))
 c
-c ****** Allocate the boundary radial magnetic field array.
+c ****** Allocate the boundary radial magnetic field array(s).
 c
       allocate (br0(nt,np))
-      br0=0.
+      br0(:,:)=0.
+!$acc enter data copyin(br0)
 c
-c ****** Allocate the boundary condition array for the potential
-c ****** for the inner solve.
-c
-      allocate (phi1(nt,np))
-      phi1=0.
-c
-c ****** Allocate the arrays for the potential at the lower
-c ****** radial boundary of the outer solve, and for the
-c ****** magnetic field at the source surface.
-c
-      if (outer_solve_needed) then
-        allocate (phio_ss(nt,np))
-        allocate (br_ss(nt,np))
+      if (validation_run) then
+        allocate (br1(nt,np))
+        br1(:,:)=0.
+!$acc enter data copyin(br1)
       end if
 c
       return
@@ -2967,87 +2555,19 @@ c
       return
       end
 c#######################################################################
-      subroutine set_ss_location
+      subroutine set_local_mesh_r
 c
 c-----------------------------------------------------------------------
 c
-c ****** Get the index of the radial cell that contains the
-c ****** source surface.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use global_dims
-      use global_mesh
-      use vars
-      use solve_params
-      use mpidefs
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), parameter :: half=.5_r_typ
-c
-c-----------------------------------------------------------------------
-c
-      integer :: i
-c
-c-----------------------------------------------------------------------
-c
-c ****** Compute the index of the radial cell that is closest to
-c ****** the requested source-surface radius.
-c
-      iss=-1
-      do i=1,nr_g-1
-        if (rh_g(i).le.rss.and.rss.lt.rh_g(i+1)) then
-          iss=i
-          exit
-        end if
-      enddo
-c
-      if (iss.le.2) then
-        if (iamp0) then
-          write (*,*)
-          write (*,*) '### ERROR in SET_SS_LOCATION:'
-          write (*,*) '### Could not locate the source-surface'//
-     &                ' radius at the requested location.'
-          write (*,*) 'Requested source-surface radius = ',rss
-        end if
-        call endrun (.true.)
-      end if
-c
-      rss_actual=half*(rh_g(iss)+rh_g(iss+1))
-c
-      if (iamp0) then
-        write (*,*)
-        write (*,*) '### COMMENT from SET_SS_LOCATION:'
-        write (*,*) 'Index of the radial cell that contains the'//
-     &              ' source-surface = ',iss
-        write (*,*) 'RH(ISS)   = ',rh_g(iss)
-        write (*,*) 'RH(ISS+1) = ',rh_g(iss+1)
-        write (*,*) 'Requested source-surface radius = ',rss
-        write (*,*) 'Actual source-surface radius    = ',rss_actual
-      end if
-c
-      return
-      end
-c#######################################################################
-      subroutine set_local_mesh_ri
-c
-c-----------------------------------------------------------------------
-c
-c ****** Define the local (inner) r mesh arrays.
+c ****** Define the local r mesh arrays.
 c
 c-----------------------------------------------------------------------
 c
       use number_types
       use global_dims
       use global_mesh
-      use local_dims_ri
-      use local_mesh_ri
+      use local_dims_r
+      use local_mesh_r
 c
 c-----------------------------------------------------------------------
 c
@@ -3071,6 +2591,7 @@ c
       enddo
 c
       dr1=dr(1)
+      drn=dr(nrm)
 c
       do i=1,nr
         rh(i)=rh_g(i0_g+i-1)
@@ -3079,64 +2600,13 @@ c
 c
 c ****** Define local auxiliary mesh-related arrays.
 c
-      r2=r**2
-      r_i=one/r
-      dr_i=one/dr
-      rh_i=one/rh
-      drh_i=one/drh
+      r2(:)=r(:)**2
+      r_i(:)=one/r(:)
+      dr_i(:)=one/dr(:)
+      rh_i(:)=one/rh(:)
+      drh_i(:)=one/drh(:)
 c
-!$acc enter data copyin(rh,drh,dr)
-      return
-      end
-c#######################################################################
-      subroutine set_local_mesh_ro
-c
-c-----------------------------------------------------------------------
-c
-c ****** Define the local (outer) r mesh arrays.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use global_dims
-      use local_dims_ro
-      use global_mesh
-      use local_mesh_ro
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), parameter :: one=1._r_typ
-c
-c-----------------------------------------------------------------------
-c
-      integer :: i
-c
-c-----------------------------------------------------------------------
-c
-c ****** Define the local meshes.
-c
-      do i=1,nrm
-        r(i)=r_g(i0_g+i-1)
-        dr(i)=dr_g(i0_g+i-1)
-      enddo
-c
-      do i=1,nr
-        rh(i)=rh_g(i0_g+i-1)
-        drh(i)=drh_g(i0_g+i-1)
-      enddo
-c
-c ****** Define local auxiliary mesh-related arrays.
-c
-      r2=r**2
-      r_i=one/r
-      dr_i=one/dr
-      rh_i=one/rh
-      drh_i=one/drh
-c
+!$acc enter data copyin(r,r2,r_i,dr,dr_i,dr1,drn,rh,rh_i,drh,drh_i)
       return
       end
 c#######################################################################
@@ -3212,11 +2682,11 @@ c
         cph(k)=cph_g(k0_g+k-1)
       enddo
 c
-      dt_i=one/dt
-      dth_i=one/dth
-      sth_i=one/sth
-      dp_i=one/dp
-      dph_i=one/dph
+      dt_i(:)=one/dt(:)
+      dth_i(:)=one/dth(:)
+      sth_i(:)=one/sth(:)
+      dp_i(:)=one/dp(:)
+      dph_i(:)=one/dph(:)
 c
 c ****** Prevent division by zero at the poles for sin(theta).
 c
@@ -3231,12 +2701,13 @@ c
         j1=ntm1
       end if
 c
-      st_i=0.
+      st_i(:)=0.
       do j=j0,j1
         st_i(j)=one/st(j)
       enddo
 c
-!$acc enter data copyin(sth,dth,dph,dt,dp)
+!$acc enter data copyin(t,th,dt,dth,p,ph,dp,dph,st,ct,sth,cth,
+!$acc&                  sp,cp,sph,cph,dt_i,dth_i,st_i,sth_i,dp_i,dph_i)
       return
       end
 c#######################################################################
@@ -4148,8 +3619,8 @@ c
       use number_types
       use global_dims
       use global_mesh
-      use local_dims_ri
-      use local_mesh_ri
+      use local_dims_r
+      use local_mesh_r
       use local_dims_tp
       use local_mesh_tp
       use fields
@@ -4236,12 +3707,14 @@ c
         end if
       end if
 c
-      br0(:,:)=0.
       do j=1,nt
         do k=1,np
           br0(j,k)=br0_g(j0_g+j-1,k0_g+k-1)
         enddo
       enddo
+!$acc update device(br0)
+c
+      deallocate(br0_g)
 c
       return
       end
@@ -4250,13 +3723,13 @@ c#######################################################################
 c
 c-----------------------------------------------------------------------
 c
-c ****** Find the (inner) potential field solution.
+c ****** Find the potential field solution.
 c
 c-----------------------------------------------------------------------
 c
       use number_types
-      use local_dims_ri
-      use local_mesh_ri
+      use local_dims_r
+      use local_mesh_r
       use local_dims_tp
       use local_mesh_tp
       use fields
@@ -4283,10 +3756,6 @@ c
 c
 c-----------------------------------------------------------------------
 c
-c ****** Set the current solve to be over the inner radial region.
-c
-      current_solve_inner=.true.
-c
 c ****** Load matrix and preconditioner.
 c
       nrm2=nrm1-1
@@ -4305,32 +3774,28 @@ c ****** Allocate cg 1D vectors.
 c
       N=nrm2*ntm2*npm2
 c
+c ****** Prepare the guess, and rhs for the solve.
+c
       allocate(rhs_cg(N))
       allocate(x_cg(N))
-c
-c ****** Prepare the guess, rhs, and scratch array for the solve.
-c
       rhs_cg(:)=0.
       x_cg(:)=0.
-      x_ax(:,:,:)=0.
+!$acc enter data copyin(rhs_cg,x_cg) async(1)
 c
-!$acc enter data copyin(rhs_cg,x_cg,x_ax,phi,
-!$acc&                  phi1,br0,dph,sum0,sum1) async(1)
-      call getM_inner (N,a_offsets,M)
-      call alloc_pot3d_inner_matrix_coefs
-      call load_matrix_pot3d_inner_solve
+      call getM (N,a_offsets,M)
+      call alloc_pot3d_matrix_coefs
+      call load_matrix_pot3d_solve
 !$acc enter data copyin(a) async(1)
-      call load_preconditioner_pot3d_inner_solve
+      call load_preconditioner_pot3d_solve
 !$acc enter data copyin(a_i) async(1)
-c
 !$acc wait(1)
 c
 c ****** Use a trick to accumulate the contribution of the
 c ****** boundary conditions (i.e., the inhomogenous part).
 c
-      call set_boundary_points_inner (x_ax,one)
+      call set_boundary_points (x_ax,one)
       call seam (x_ax,nr,nt,np)
-      call delsq_inner (x_ax,rhs_cg)
+      call delsq (x_ax,rhs_cg)
 c
 c ****** Original rhs is zero so just use negative of boundary
 c        trick contributions:
@@ -4345,7 +3810,7 @@ c
       if (idebug.gt.0.and.iamp0) then
         write (*,*)
         write (*,*) '### COMMENT from POTFLD:'
-        write (*,*) '### Doing an (inner) solution:'
+        write (*,*) '### Doing a solution:'
       end if
 c
       call solve (x_cg,rhs_cg,N,ierr)
@@ -4354,13 +3819,12 @@ c
         call endrun (.true.)
       end if
 c
-      call unpack_scalar_inner (phi,x_cg)
+      call unpack_scalar (phi,x_cg)
 c
-      call set_boundary_points_inner (phi,one)
+      call set_boundary_points (phi,one)
       call seam (phi,nr,nt,np)
 c
-!$acc exit data delete(rhs_cg,x_cg,x_ax,phi1,br0,
-!$acc&                 dph,a,a_i,sum0,sum1)
+!$acc exit data delete(rhs_cg,x_cg,a,a_i)
       call dealloc_pot3d_matrix_coefs
       deallocate(rhs_cg)
       deallocate(x_cg)
@@ -4368,73 +3832,25 @@ c
       return
       end
 c#######################################################################
-      subroutine get_ss_field
+      subroutine set_validation_flux
 c
 c-----------------------------------------------------------------------
 c
-c ****** Compute the radial magnetic field at the source surface.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use local_dims_ri
-      use local_mesh_ri
-      use local_dims_tp
-      use fields
-      use mpidefs
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer :: ierr,lbuf
-      real(r_typ), dimension(nt,np) :: rbuf
-c
-c-----------------------------------------------------------------------
-c
-c ****** Set the boundary flux array for the outer solution.
-c
-      if (rb1) then
-        br_ss(:,:)=(phi(nr,:,:)-phi(nrm1,:,:))/dr(nrm1)
-      else
-        br_ss=0.
-      end if
-c
-c ****** Send the boundary field to all processors (in radius).
-c ****** This is done by summing over all processors (in radius)
-c ****** that share this (t,p) region.
-c
-      lbuf=nt*np
-      call MPI_Allreduce (br_ss,rbuf,lbuf,ntype_real,
-     &                    MPI_SUM,comm_r,ierr)
-      br_ss=rbuf
-c
-      return
-      end
-c#######################################################################
-      subroutine potfld_outer
-c
-c-----------------------------------------------------------------------
-c
-c ****** Find the (outer) potential field solution.
+c ****** Set the radial magnetic field at the photosphere.
+c ****** This uses the tilted dipole analytic solution for validation.
 c
 c-----------------------------------------------------------------------
 c
       use number_types
-      use local_dims_ro
-      use local_mesh_ro
+      use global_dims
+      use global_mesh
+      use local_dims_r
+      use local_mesh_r
       use local_dims_tp
       use local_mesh_tp
       use fields
-      use cgcom
-      use solve_params
+      use vars
       use mpidefs
-      use debug
-      use decomposition
-      use seam_interface
-      use matrix_storage_pot3d_solve
 c
 c-----------------------------------------------------------------------
 c
@@ -4442,227 +3858,204 @@ c
 c
 c-----------------------------------------------------------------------
 c
-      real(r_typ), parameter :: one=1._r_typ
-      real(r_typ), parameter :: half=.5_r_typ
+      real(r_typ), parameter :: two=2.0_r_typ
 c
 c-----------------------------------------------------------------------
 c
-      integer :: ierr,j,k,lbuf,j0,j1,nrm2,ntm2,npm2
-      real(r_typ) :: area,da,dap,dam,alpha
-      real(r_typ) :: phio_av1,phio_av2,phio_av,phio_nl
-      real(r_typ), dimension(nt,np) :: rbuf
+c ****** Global Br boundary arrays.
 c
-      real(r_typ), dimension(:), allocatable :: rhs_cg,x_cg
+      real(r_typ), dimension(:,:), allocatable :: br0_g
+      real(r_typ), dimension(:,:), allocatable :: br1_g
 c
 c-----------------------------------------------------------------------
 c
-c ****** Set the current solve to be over the outer radial region.
-c
-      current_solve_inner=.false.
-c
-c ****** Load matrix and preconditioner.
-c
-      nrm2=nrm1-1
-      ntm2=ntm1-1
-      npm2=npm1-1
-c
-      N=nrm2*ntm2*npm2
-c
-      a_offsets(1)=-nrm2*ntm2
-      a_offsets(2)=-nrm2
-      a_offsets(3)=-1
-      a_offsets(4)= 0
-      a_offsets(5)= 1
-      a_offsets(6)= nrm2
-      a_offsets(7)= nrm2*ntm2
-c
-c ****** Allocate cg vectors.
-c
-      allocate(rhs_cg(N))
-      allocate(x_cg(N))
-c
-c ****** Set the RHS.
-c
-      rhs_cg=0.
-
-      call getM_outer(N,a_offsets,M)
-      call alloc_pot3d_outer_matrix_coefs
-      call load_matrix_pot3d_outer_solve
-      call load_preconditioner_pot3d_outer_solve
-c
-c ****** Use a trick to accumulate the contribution of the
-c ****** boundary conditions (i.e., the inhomogenous part).
-c
-      x_ax(:,:,:)=0.
-      call set_boundary_points_outer (x_ax,one)
-      call seam_outer (x_ax)
-      call delsq_outer (x_ax,rhs_cg)
-c
-c ****** Original rhs is zero so just use negative of boundary
-c        trick contributions:
-c
-      rhs_cg=-rhs_cg
-c
-c ****** Prepare the guess to the solution.
-c
-      x_cg=0.
-c
-c ****** Solve for the potential.
-c
-      if (idebug.gt.0.and.iamp0) then
-        write (*,*)
-        write (*,*) '### COMMENT from POTFLD_OUTER:'
-        write (*,*) '### Doing an outer solution:'
-      end if
-c
-      call solve (x_cg,rhs_cg,N,ierr)
-c
-      if (ierr.ne.0) then
-        call endrun (.true.)
-      end if
-c
-      call unpack_scalar_outer (phio,x_cg,N)
-c
-      call set_boundary_points_outer (phio,one)
-      call seam_outer (phio)
-c
-c ****** Compute the average PHI on the source-surface
-c ****** neutral line.
-c
-      phio_nl=0.
-      area=0.
-      if (rb0) then
-        j0=map_tm(iproc)%i0
-        j1=map_tm(iproc)%i1
-        do k=2,npm1
-          do j=j0,j1
-            if (br_ss(j,k)*br_ss(j+1,k).le.0.) then
-              if (br_ss(j,k).ne.br_ss(j+1,k)) then
-                alpha=-br_ss(j,k)/(br_ss(j+1,k)-br_ss(j,k))
-              else
-                alpha=half
-              end if
-              phio_av1=(one-alpha)*phio(1,j,k)+alpha*phio(1,j+1,k)
-              phio_av2=(one-alpha)*phio(2,j,k)+alpha*phio(2,j+1,k)
-              phio_av=half*(phio_av1+phio_av2)
-              dap=sth(j+1)*dth(j+1)*dph(k)
-              dam=sth(j  )*dth(j  )*dph(k)
-              da=(one-alpha)*dam+alpha*dap
-              phio_nl=phio_nl+phio_av*da
-              area=area+da
-            end if
-          enddo
-        enddo
-      end if
-c
-      call global_sum (area)
-      call global_sum (phio_nl)
-c
-      if (area.eq.0.) then
-        if (iamp0) then
-          write (*,*)
-          write (*,*) '### ERROR in POTFLD_OUTER:'
-          write (*,*) '### Anomaly in getting the average'//
-     &                ' potential on the'
-          write (*,*) '### source-surface neutral line.'
-          write (*,*) '### This should never happen.'
-          write (*,*) '### Something is drastically wrong!'
-        end if
-        call endrun (.true.)
-      end if
-c
-      phio_nl=phio_nl/area
-c
-      write (*,*)
-      write (*,*) 'PHIO_NL = ',phio_nl
-c
-c ****** Subtract the average potential from PHIO.
-c
-      phio=phio-phio_nl
-c
-c ****** Set the potential at the source surface from the
-c ****** outer solution.  Note that the sign of the potential has
-c ****** to be switched in regions of negative polarity.
-c
-      if (rb0) then
-        do k=1,np
-          do j=1,nt
-            phio_ss(j,k)=half*(phio(1,j,k)+phio(2,j,k))
-            if (br_ss(j,k).le.0.) then
-              phio_ss(j,k)=-phio_ss(j,k)
-            end if
-          enddo
-        enddo
-      else
-        phio_ss=0.
-      end if
-c
-c ****** Send the boundary potential to all processors (in radius).
-c ****** This is done by summing over all processors (in radius)
-c ****** that share this (t,p) region.
-c
-      lbuf=nt*np
-      call MPI_Allreduce (phio_ss,rbuf,lbuf,ntype_real,
-     &                    MPI_SUM,comm_r,ierr)
-      phio_ss=rbuf
-c
-c ****** Set the new potential at the source surface for the
-c ****** next inner solution.
-c
-      phi1=half*(phi1+phio_ss)
-c
-c ****** Switch the sign of the potential in the outer radial
-c ****** domain in regions that connect to the negative polarity.
-c
-ccc      call switch_sign_phio
-c
-c
-      call dealloc_pot3d_matrix_coefs
-      deallocate(rhs_cg)
-      deallocate(x_cg)
-c
-      return
-      end
-c#######################################################################
-      subroutine switch_sign_phio
+      integer :: j,k,ierr
+      real(r_typ) :: sum00,sum11
 c
 c-----------------------------------------------------------------------
 c
-c ****** Reverse the sign of the potential in the outer 3D radial
-c ****** domain based on the location with respect to the negative
-c ****** magnetic field polarity at the source surface.
+c ****** Define the global boundary condition arrays.
 c
-c-----------------------------------------------------------------------
+      allocate (br0_g(nt_g,np_g))
+      allocate (br1_g(nt_g,np_g))
 c
-      use local_dims_tp
-      use fields
+c ****** Set the tilted dipole analytic Br.
 c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer :: j,k
-c
-c-----------------------------------------------------------------------
-c
-c ****** Switch the sign of PHIO in the negative polarity.
-c ****** This has to be done using field line tracing in general.
-c
-c ****** This is hard-wired for an axisymmetric dipole that is
-c ****** symmetric about the equator!
-c
-      do k=1,np
-        do j=1,nt
-          if (br_ss(j,k).le.0.) then
-            phio(:,j,k)=-phio(:,j,k)
-          end if
+      do j=1,nt_g
+        do k=1,np_g
+          br0_g(j,k)=(two/r0**3)*(cth_g(j)*cos(dipole_angle) +
+     &                            sth_g(j)*cph_g(k)*sin(dipole_angle))
+          br1_g(j,k)=(two/r1**3)*(cth_g(j)*cos(dipole_angle) +
+     &                            sth_g(j)*cph_g(k)*sin(dipole_angle))
         enddo
       enddo
 c
-      return
-      end
+c ****** Set Br to be periodic (should not be nesessary?).
+c
+      br0_g(:,1)=br0_g(:,npm1_g)
+      br0_g(:,np_g)=br0_g(:,2)
+      br1_g(:,1)=br1_g(:,npm1_g)
+      br1_g(:,np_g)=br1_g(:,2)
+c
+c ****** Set BCs at the poles.
+c
+      sum00=sum(br0_g(     2,2:npm1_g)*dph_g(2:npm1_g))*pl_i
+      sum11=sum(br0_g(ntm1_g,2:npm1_g)*dph_g(2:npm1_g))*pl_i
+c
+      br0_g(1   ,:)=two*sum00-br0_g(     2,:)
+      br0_g(nt_g,:)=two*sum11-br0_g(ntm1_g,:)
+c
+      sum00=sum(br1_g(     2,2:npm1_g)*dph_g(2:npm1_g))*pl_i
+      sum11=sum(br1_g(ntm1_g,2:npm1_g)*dph_g(2:npm1_g))*pl_i
+c
+      br1_g(1   ,:)=two*sum00-br1_g(     2,:)
+      br1_g(nt_g,:)=two*sum11-br1_g(ntm1_g,:)
+c
+      do j=1,nt
+        do k=1,np
+          br0(j,k)=br0_g(j0_g+j-1,k0_g+k-1)
+          br1(j,k)=br1_g(j0_g+j-1,k0_g+k-1)
+        enddo
+      enddo
+!$acc update device(br0,br1)
+c
+      deallocate(br0_g)
+      deallocate(br1_g)
+c
+      end subroutine
+c#######################################################################
+      subroutine write_validation_solution
+c
+c-----------------------------------------------------------------------
+c
+c ****** Write out the tilted dipole analytic solution for validation.
+c ****** This writes out the phi, B, and B computed from phi.
+c
+c-----------------------------------------------------------------------
+c
+      use number_types
+      use global_dims
+      use global_mesh
+      use local_dims_r
+      use local_mesh_r
+      use local_dims_tp
+      use local_mesh_tp
+      use fields
+      use vars
+      use mpidefs
+c
+c-----------------------------------------------------------------------
+c
+      implicit none
+c
+c-----------------------------------------------------------------------
+c
+      real(r_typ), parameter :: one=1.0_r_typ
+      real(r_typ), parameter :: two=2.0_r_typ
+c
+c-----------------------------------------------------------------------
+c
+      integer :: i,j,k
+      character(256) :: fnamephi,fnamebr,fnamebt,fnamebp
+c
+c-----------------------------------------------------------------------
+c
+c ****** Declaration for the global arrays.
+c ****** These arrays are only allocated on processor IPROC0.
+c
+      real(r_typ), dimension(:,:,:), allocatable :: phi_g
+      real(r_typ), dimension(:,:,:), allocatable :: br_g
+      real(r_typ), dimension(:,:,:), allocatable :: bt_g
+      real(r_typ), dimension(:,:,:), allocatable :: bp_g
+c
+c-----------------------------------------------------------------------
+c
+c ****** Set phi.
+c
+!$acc parallel loop default(present) collapse(3)
+      do k=1,np
+        do j=1,nt
+          do i=1,nr
+            phi(i,j,k)=(-one/rh(i)**2)*(cth(j)*cos(dipole_angle)+
+     &                                 sth(j)*cph(k)*sin(dipole_angle))
+          enddo
+        enddo
+      enddo
+c
+      call set_boundary_points (phi,one)
+      call seam (phi,nr,nt,np)
+c
+!$acc enter data create(br,bt,bp)
+c
+c ****** Set Br.
+c
+!$acc parallel loop default(present) collapse(3)
+      do k=1,np
+        do j=1,nt
+          do i=1,nrm1
+            br(i,j,k)=(two/r(i)**3)*(cth(j)*cos(dipole_angle) +
+     &                               sth(j)*cph(k)*sin(dipole_angle))
+          enddo
+        enddo
+      enddo
+c
+c ****** Set Bt.
+c
+!$acc parallel loop default(present) collapse(3)
+      do k=1,np
+        do j=1,ntm1
+          do i=1,nr
+            bt(i,j,k)=(one/rh(i)**3)*(st(j)*cos(dipole_angle) -
+     &                                ct(j)*cph(k)*sin(dipole_angle))
+          enddo
+        enddo
+      enddo
+c
+c ****** Set Bp.
+c
+!$acc parallel loop default(present) collapse(3)
+      do k=1,npm1
+        do j=1,nt
+          do i=1,nr
+            bp(i,j,k)=(one/rh(i)**3)*(sph(k)*sin(dipole_angle))
+          enddo
+        enddo
+      enddo
+c
+c ****** Due to half mesh trig issues on periodic domain, we need
+c ****** to seam these even though seaming is not needed in getb().
+c
+      call seam (br,nrm,nt,np)
+      call seam (bt,nr,ntm,np)
+      call seam (bp,nr,nt,npm)
+c
+c ****** Backup fnames and set new ones so we can reuse write routine.
+c
+      fnamephi=phifile
+      phifile='phi_exact.'//trim(fmt)
+      fnamebr=brfile
+      brfile='br_exact.'//trim(fmt)
+      fnamebt=btfile
+      btfile='bt_exact.'//trim(fmt)
+      fnamebp=bpfile
+      bpfile='bp_exact.'//trim(fmt)
+c
+      call write_solution
+c
+c ****** Restore original output names.
+c
+      phifile=fnamephi
+      brfile=fnamebr
+      btfile=fnamebt
+      bpfile=fnamebp
+c
+c ****** Reset phi.
+c
+      phi(:,:,:)=0.
+!$acc update device(phi)
+!$acc exit data delete(br,bt,bp)
+c
+      end subroutine
 c#######################################################################
       subroutine solve (x,rhs,N,ierr)
 c
@@ -4945,6 +4338,9 @@ c
               write (9,*) '### Convergence information:'
             end if
             write (9,100) ncg,epsn
+            if (mod(ncg,ncgflush).eq.0) then
+              call flush_output_file(outfile,9)
+            end if
   100       format (1x,'N = ',i6,' EPSN = ',1pe13.6)
           end if
         end if
@@ -4959,6 +4355,7 @@ c
             write (9,*) '### Comment from ERNORM:'
             write (9,*) '### The CG solver has converged.'
             write (9,100) ncg,epsn
+            call flush_output_file(outfile,9)
           end if
         end if
         ierr=0
@@ -4974,6 +4371,7 @@ c
           write (9,*) '### Exceeded maximum number of iterations.'
           write (9,*) 'NCGMAX = ',ncgmax
           write (9,*) 'EPSN = ',epsn
+          call flush_output_file(outfile,9)
         end if
         ierr=1
       end if
@@ -4981,18 +4379,18 @@ c
       return
       end
 c#######################################################################
-      subroutine alloc_pot3d_inner_matrix_coefs
+      subroutine alloc_pot3d_matrix_coefs
 c
 c-----------------------------------------------------------------------
 c
 c ****** Allocate the arrays in which the matrix coefficients
-c ****** for the inner pot3d solve are stored.
+c ****** for the pot3d solve are stored.
 c
 c-----------------------------------------------------------------------
 c
       use matrix_storage_pot3d_solve
       use cgcom
-      use local_dims_ri
+      use local_dims_r
       use local_dims_tp
 c
 c-----------------------------------------------------------------------
@@ -5002,47 +4400,6 @@ c
 c-----------------------------------------------------------------------
 c
       allocate (a(2:nrm1,2:ntm1,2:npm1,7))
-      a=0.
-      allocate (a_i(N))
-      a_i=0.
-c
-      if (ifprec.eq.2) then
-        allocate (a_csr(M))
-        allocate (lu_csr(M))
-        allocate (lu_csr_ja(M))
-        allocate (a_csr_ja(M))
-        allocate (a_csr_ia(1+N))
-        allocate (a_csr_x(N))
-        allocate (a_N1(N))
-        allocate (a_N2(N))
-        allocate (a_csr_d(N))
-        allocate (a_csr_dptr(N))
-      endif
-c
-      return
-      end
-c#######################################################################
-      subroutine alloc_pot3d_outer_matrix_coefs
-c
-c-----------------------------------------------------------------------
-c
-c ****** Allocate the arrays in which the matrix coefficients
-c ****** for the outer pot3d solve are stored.
-c
-c-----------------------------------------------------------------------
-c
-      use matrix_storage_pot3d_solve
-      use cgcom
-      use local_dims_ro
-      use local_dims_tp
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      allocate (a  (2:nrm1,2:ntm1,2:npm1,7))
       a=0.
       allocate (a_i(N))
       a_i=0.
@@ -5100,18 +4457,18 @@ c
       return
       end
 c#######################################################################
-      subroutine load_matrix_pot3d_inner_solve
+      subroutine load_matrix_pot3d_solve
 c
 c-----------------------------------------------------------------------
 c
-c ****** Load the matrix coefficients for the inner pot3d solve.
+c ****** Load the matrix coefficients for the pot3d solve.
 c
 c-----------------------------------------------------------------------
 c
       use number_types
       use matrix_storage_pot3d_solve
-      use local_dims_ri
-      use local_mesh_ri
+      use local_dims_r
+      use local_mesh_r
       use local_dims_tp
       use local_mesh_tp
 c
@@ -5153,71 +4510,18 @@ c
       return
       end
 c#######################################################################
-      subroutine load_matrix_pot3d_outer_solve
+      subroutine load_preconditioner_pot3d_solve
 c
 c-----------------------------------------------------------------------
 c
-c ****** Load the matrix coefficients for the outer pot3d solve.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use matrix_storage_pot3d_solve
-      use local_dims_ro
-      use local_mesh_ro
-      use local_dims_tp
-      use local_mesh_tp
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer :: i,j,k
-c
-c-----------------------------------------------------------------------
-c
-c ****** Set matrix coefs
-c
-      do k=2,npm1
-        do j=2,ntm1
-          do i=2,nrm1
-c           a*ps(i,j,k-1):
-            a(i,j,k,1)=-drh(i)*dth(j)*sth_i(j)*dp_i(k-1)
-c           a*ps(i,j-1,k):
-            a(i,j,k,2)=-drh(i)*dph(k)*st(j-1)*dt_i(j-1)
-c           a*ps(i-1,j,k):
-            a(i,j,k,3)=-sth(j)*dth(j)*dph(k)*r2(i-1)*dr_i(i-1)
-c           a*ps(i+1,j,k):
-            a(i,j,k,5)=-sth(j)*dth(j)*dph(k)*r2(i  )*dr_i(i  )
-c           a*ps(i,j+1,k):
-            a(i,j,k,6)=-drh(i)*dph(k)*st(j  )*dt_i(j  )
-c           a*ps(i,j,k+1):
-            a(i,j,k,7)=-drh(i)*dth(j)*sth_i(j)*dp_i(k  )
-c
-c           a*ps(i,j,k):
-            a(i,j,k,4)=-(a(i,j,k,1)+a(i,j,k,2)+a(i,j,k,3)+
-     &                   a(i,j,k,5)+a(i,j,k,6)+a(i,j,k,7))
-          enddo
-        enddo
-      enddo
-c
-      return
-      end
-c#######################################################################
-      subroutine load_preconditioner_pot3d_inner_solve
-c
-c-----------------------------------------------------------------------
-c
-c ****** Load the preconditioner for the inner pot3d solve.
+c ****** Load the preconditioner for the pot3d solve.
 c
 c-----------------------------------------------------------------------
 c
       use number_types
       use matrix_storage_pot3d_solve
       use cgcom
-      use local_dims_ri
+      use local_dims_r
       use local_dims_tp
 c
 c-----------------------------------------------------------------------
@@ -5254,85 +4558,7 @@ c
 c
 c ****** Convert A matrix into CSR format:
 c
-        call diacsr_inner (N,M,a,a_offsets,a_csr,a_csr_ja,
-     &                     a_csr_ia,a_csr_dptr)
-c
-c ****** Overwrite CSR A with preconditioner L and U matrices:
-c
-c ****** Incomplete LU (ILU)
-c
-        icode=0
-        call ilu0 (N,M,a_csr,a_csr_ja,a_csr_ia,a_csr_dptr,icode)
-c
-        if (icode.ne.0) then
-          print*, '### ERROR IN ILU FORMATION'
-        endif
-c
-c ****** Convert LU stored in A to LU matrix in optimized layout.
-c
-        call lu2luopt (N,M,lu_csr,a_csr,a_csr_ia,a_csr_ja,lu_csr_ja,
-     &                 a_csr_dptr,a_N1,a_N2)
-c
-c ****** Store inverse of diagonal of LU matrix.
-c
-        do i=1,N
-          a_csr_d(i)=one/a_csr(a_csr_dptr(i))
-        enddo
-c
-      endif
-c
-      return
-      end
-c#######################################################################
-      subroutine load_preconditioner_pot3d_outer_solve
-c
-c-----------------------------------------------------------------------
-c
-c ****** Load the preconditioner for the outer pot3d solve.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use matrix_storage_pot3d_solve
-      use cgcom
-      use local_dims_ro
-      use local_dims_tp
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), parameter :: one=1._r_typ
-c
-c-----------------------------------------------------------------------
-c
-      integer :: i,j,k,icode,ii
-c
-c-----------------------------------------------------------------------
-c
-      if (ifprec.eq.0) return
-c
-      if (ifprec.eq.1) then
-c
-c ****** Diagonal scaling:
-c
-        ii=0
-        do k=2,npm1
-          do j=2,ntm1
-            do i=2,nrm1
-              ii=ii+1
-              a_i(ii)=one/a(i,j,k,4)
-            enddo
-          enddo
-        enddo
-c
-      elseif (ifprec.eq.2) then
-c
-c ****** Convert A matrix into CSR format:
-c
-        call diacsr_outer (N,M,a,a_offsets,a_csr,a_csr_ja,
+        call diacsr (N,M,a,a_offsets,a_csr,a_csr_ja,
      &                     a_csr_ia,a_csr_dptr)
 c
 c ****** Overwrite CSR A with preconditioner L and U matrices:
@@ -5515,7 +4741,7 @@ c
       return
       end
 c#######################################################################
-      subroutine diacsr_inner (N,M,Adia,ioff,Acsr,JA,IA,Adptr)
+      subroutine diacsr (N,M,Adia,ioff,Acsr,JA,IA,Adptr)
 c
 c-----------------------------------------------------------------------
 c
@@ -5541,7 +4767,7 @@ c
 c-----------------------------------------------------------------------
 c
       use number_types
-      use local_dims_ri
+      use local_dims_r
       use local_dims_tp
       use mpidefs
 c
@@ -5675,282 +4901,20 @@ c
       return
       end
 c#######################################################################
-      subroutine getM_inner (N, ioff, M)
+      subroutine getM (N, ioff, M)
 c
 c-----------------------------------------------------------------------
 c
 c *** This routine computes the number of non-zeros in the
 c     solver matrix for use with allocating the matrices.
-c     See diacsr_inner() for description of inputs.
+c     See diacsr() for description of inputs.
 c
 c     Output:  M  # of nonzeros.
 c
 c-----------------------------------------------------------------------
 c
       use mpidefs
-      use local_dims_ri
-      use local_dims_tp
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer, parameter :: IDIAG=7
-      integer :: N,M,i,j,jj,ko,mi,mj,mk,x
-      integer :: ioff(IDIAG)
-      integer :: ioffok(IDIAG)
-c
-      x=0
-c
-      ko=1
-      i=0
-c
-      do mk=2,npm1
-        do mj=2,ntm1
-          do mi=2,nrm1
-c
-            ioffok(:)=1
-c
-            if (mi.eq.2) then
-              ioffok(3)=0;
-            endif
-c
-            if (mi.eq.nrm1) then
-              ioffok(5)=0;
-            endif
-c
-            if (mj.eq.2) then
-              ioffok(2)=0;
-            endif
-c
-            if (mj.eq.ntm1) then
-              ioffok(6)=0;
-            endif
-c
-c ********* Eliminate periodic ceofs in the case nproc_p>1
-c
-            if (nproc_p.gt.1) then
-              if (mk.eq.2) then
-                ioffok(1)=0
-              endif
-              if (mk.eq.npm1) then
-                ioffok(7)=0
-              endif
-            endif
-c
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.gt.N-x) then
-                  ko=ko+1
-                endif
-              endif
-            enddo
-c
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.ge.1.and.j.le.N-x) then
-                  ko=ko+1
-                endif
-              endif
-            enddo
-c
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.lt.1) then
-                  ko=ko+1
-                endif
-              endif
-            enddo
-          enddo
-        enddo
-      enddo
-c
-c *** Save number of non-zeros of matrix:
-c
-      M=ko-1
-c
-      return
-      end
-c#######################################################################
-      subroutine diacsr_outer (N,M,Adia,ioff,Acsr,JA,IA,Adptr)
-c
-c-----------------------------------------------------------------------
-c
-c *** DIACSR_OUTER converts a solver matrix in a MAS-style
-c     diagonal format to standard compressed sparse row (CSR)
-c     including periodic coefficents when nproc_p=1.
-c
-c     Author of original diacsr: Youcef Saad
-c     Modifications for MAS:     RM Caplan
-c
-c     Input:
-c                     N: Size of the matrix (NxN)
-c                     M: Number of non-zero entries in matrix
-c                        (computed with getM_tc())
-c         Adia(IDIAG,N): The matrix in modified "DIA" format
-c           ioff(IDIAG): Offsets of the diagonals in A.
-c
-c     Output:
-c            Acsr(M), JA(M), IA(N+1): The matrix A in CSR.
-c                           Adptr(N): Pointers to diag elements in A,
-c                                     [e.g. A(i,i) == A(Adptr(i))]
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use local_dims_ro
-      use local_dims_tp
-      use mpidefs
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer, parameter :: IDIAG=7
-c
-c-----------------------------------------------------------------------
-c
-      real (r_typ) :: Acsr(M)
-      real (r_typ) :: Adia(N,IDIAG)
-      integer :: N,M
-      integer :: Adptr(N)
-      integer :: IA(N+1)
-      integer :: JA(M)
-      integer :: ioff(IDIAG)
-c
-c-----------------------------------------------------------------------
-c
-      integer :: i,j,jj,mi,mj,mk,ko,x
-      integer :: ioffok(IDIAG)
-c
-c-----------------------------------------------------------------------
-c
-      x=0
-c
-      IA(1)=1
-      ko=1
-      i=0
-c
-      do mk=2,npm1
-        do mj=2,ntm1
-          do mi=2,nrm1
-c ********* Set index of value and column indicies array:
-            i=i+1
-c
-c ********* Do not add coefs that multiply boundaries:
-c           For each boundary, there is a sub-set of coefs in the
-c           matrix row that should not be added.
-c           This makes "local" matrices have no bc info
-c
-c ********* Reset "i-offset-ok-to-use-coef-jj" array:
-c
-            ioffok(:)=1
-c
-            if (mi.eq.2) then
-              ioffok(3)=0;
-            endif
-c
-            if (mi.eq.nrm1) then
-              ioffok(5)=0;
-            endif
-c
-            if (mj.eq.2) then
-              ioffok(2)=0;
-            endif
-c
-            if (mj.eq.ntm1) then
-              ioffok(6)=0;
-            endif
-c
-c ********* Eliminate periodic ceofs in the case nproc_p>1
-c
-            if (nproc_p.gt.1) then
-              if (mk.eq.2) then
-                ioffok(1)=0
-              endif
-              if (mk.eq.npm1) then
-                ioffok(7)=0
-              endif
-            endif
-c
-c ********* To handle periodicity of phi in nproc_p=1 case:
-c           We want CSR matrix to be in order so
-c           have to sweep three times to avoid sorting:
-c
-c ********* Add periodic coefs of "right side":
-c
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.gt.N-x) then
-                  j=j-N
-                  Acsr(ko)=Adia(i,jj)
-                  JA(ko)=j
-                  ko=ko+1
-                endif
-              endif
-            enddo
-c
-c ********* Now do non-periodic coefs:
-c
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.ge.1.and.j.le.N-x) then
-c                 Store pointer to diagonal elements in A:
-                  if (jj.eq.4) Adptr(i)=ko
-                  Acsr(ko)=Adia(i,jj)
-                  JA(ko)=j
-                  ko=ko+1
-                endif
-              endif
-            enddo
-c
-c ********* Now do periodic coefs of "left side":
-c
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.lt.1) then
-                  j=N+j
-                  Acsr(ko)=Adia(i,jj)
-                  JA(ko)=j
-                  ko=ko+1
-                endif
-              endif
-            enddo
-c
-c ********* Set row offset:
-c
-            IA(i+1)=ko-x
-          enddo
-        enddo
-      enddo
-c
-      return
-      end
-c#######################################################################
-      subroutine getM_outer (N, ioff, M)
-c
-c-----------------------------------------------------------------------
-c
-c *** This routine computes the number of non-zeros in the
-c     solver matrix for use with allocating the matrices.
-c     See diacsr_outer() for description of inputs.
-c
-c     Output:  M  # of nonzeros.
-c
-c-----------------------------------------------------------------------
-c
-      use mpidefs
-      use local_dims_ro
+      use local_dims_r
       use local_dims_tp
 c
 c-----------------------------------------------------------------------
@@ -6048,39 +5012,7 @@ c
 c-----------------------------------------------------------------------
 c
       use number_types
-      use cgcom
-      use solve_params
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer :: N
-      real(r_typ), dimension(N) :: x,y
-c
-c-----------------------------------------------------------------------
-c
-      if (current_solve_inner) then
-        call ax_inner (x,y,N)
-      else
-        call ax_outer (x,y,N)
-      end if
-c
-      return
-      end
-c#######################################################################
-      subroutine ax_inner (x,y,N)
-c
-c-----------------------------------------------------------------------
-c
-c ****** Set y = A * x.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use local_dims_ri
+      use local_dims_r
       use local_dims_tp
       use fields, ONLY : x_ax
 c
@@ -6101,11 +5033,11 @@ c-----------------------------------------------------------------------
 c
 c ****** Expand X array to allow for boundary and seam values.
 c
-      call unpack_scalar_inner (x_ax,x)
+      call unpack_scalar (x_ax,x)
 c
 c ****** Set the boundary values of X.
 c
-      call set_boundary_points_inner (x_ax,zero)
+      call set_boundary_points (x_ax,zero)
 c
 c ****** Seam along edges between processors.
 c
@@ -6113,55 +5045,7 @@ c
 c
 c ****** Get the matrix-vector product.
 c
-      call delsq_inner (x_ax,y)
-c
-      return
-      end
-c#######################################################################
-      subroutine ax_outer (x,y,N)
-c
-c-----------------------------------------------------------------------
-c
-c ****** Set y = A * x.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use local_dims_ro
-      use local_dims_tp
-      use seam_interface
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), parameter :: zero=0._r_typ
-c
-c-----------------------------------------------------------------------
-c
-      integer :: N
-      real(r_typ), dimension(N) :: x,y
-      real(r_typ), dimension(nr,nt,np) :: x_ax
-c
-c-----------------------------------------------------------------------
-c
-c ****** Expand X array to allow for boundary and seam values.
-c
-      call unpack_scalar_outer (x_ax,x,N)
-c
-c ****** Set the boundary values of X.
-c
-      call set_boundary_points_outer (x_ax,zero)
-c
-c ****** Seam along edges between processors.
-c
-      call seam_outer (x_ax)
-c
-c ****** Get the matrix-vector product.
-c
-      call delsq_outer (x_ax,y)
+      call delsq (x_ax,y)
 c
       return
       end
@@ -6290,17 +5174,17 @@ c
       return
       end
 c#######################################################################
-      subroutine unpack_scalar_inner (s,x)
+      subroutine unpack_scalar (s,x)
 c
 c-----------------------------------------------------------------------
 c
-c ****** Unpack the inner scalar x into
+c ****** Unpack the scalar x into
 c ****** three-dimensional array s leaving room for boundaries.
 c
 c-----------------------------------------------------------------------
 c
       use number_types
-      use local_dims_ri
+      use local_dims_r
       use local_dims_tp
 c
 c-----------------------------------------------------------------------
@@ -6330,50 +5214,7 @@ c
       return
       end
 c#######################################################################
-      subroutine unpack_scalar_outer (s,x,N)
-c
-c-----------------------------------------------------------------------
-c
-c ****** Unpack the outer scalar x into
-c ****** three-dimensional array s leaving room for boundaries.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use local_dims_ro
-      use local_dims_tp
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer :: N
-      real(r_typ), dimension(nr,nt,np) :: s
-      real(r_typ), dimension(N) :: x
-c
-c-----------------------------------------------------------------------
-c
-      integer :: i,j,k,l
-c
-c-----------------------------------------------------------------------
-c
-      l=0
-c
-      do k=2,npm1
-        do j=2,ntm1
-          do i=2,nrm1
-            l=l+1
-            s(i,j,k)=x(l)
-          enddo
-        enddo
-      enddo
-c
-      return
-      end
-c#######################################################################
-      subroutine delsq_inner (x,y)
+      subroutine delsq (x,y)
 c
 c-----------------------------------------------------------------------
 c
@@ -6382,7 +5223,7 @@ c
 c-----------------------------------------------------------------------
 c
       use number_types
-      use local_dims_ri
+      use local_dims_r
       use local_dims_tp
       use matrix_storage_pot3d_solve
 c
@@ -6419,54 +5260,7 @@ c
       return
       end
 c#######################################################################
-      subroutine delsq_outer (x,y)
-c
-c-----------------------------------------------------------------------
-c
-c ****** Set Y = - (dV * del-squared X) at the internal points.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use local_dims_ro
-      use local_dims_tp
-      use matrix_storage_pot3d_solve
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), dimension(nr,nt,np) :: x
-      real(r_typ), dimension(N) :: y
-c
-c-----------------------------------------------------------------------
-c
-      integer :: i,j,k,ii
-c
-c-----------------------------------------------------------------------
-c
-      ii=0
-      do k=2,npm1
-        do j=2,ntm1
-          do i=2,nrm1
-            ii=ii+1
-            y(ii)=a(i,j,k,1)*x(i  ,j  ,k-1)
-     &           +a(i,j,k,2)*x(i  ,j-1,k  )
-     &           +a(i,j,k,3)*x(i-1,j  ,k  )
-     &           +a(i,j,k,4)*x(i  ,j  ,k  )
-     &           +a(i,j,k,5)*x(i+1,j  ,k  )
-     &           +a(i,j,k,6)*x(i  ,j+1,k  )
-     &           +a(i,j,k,7)*x(i  ,j  ,k+1)
-          enddo
-        enddo
-      enddo
-c
-      return
-      end
-c#######################################################################
-      subroutine set_boundary_points_inner (x,vmask)
+      subroutine set_boundary_points (x,vmask)
 c
 c-----------------------------------------------------------------------
 c
@@ -6476,12 +5270,13 @@ c-----------------------------------------------------------------------
 c
       use number_types
       use global_mesh
-      use local_dims_ri
-      use local_mesh_ri
+      use local_dims_r
+      use local_mesh_r
       use local_dims_tp
       use local_mesh_tp
       use fields
       use solve_params
+      use vars, ONLY : validation_run
 c
 c-----------------------------------------------------------------------
 c
@@ -6508,18 +5303,27 @@ c
 !$acc parallel loop collapse(2) default(present) async(1)
         do k=2,npm1
           do j=2,ntm1
-            x( 1,j,k)= x(2,j,k)-vmask*br0(j,k)*dr1
+            x( 1,j,k)=x(2,j,k)-vmask*br0(j,k)*dr1
           enddo
         enddo
       end if
 c
       if (rb1) then
+        if (validation_run) then
 !$acc parallel loop collapse(2) default(present) async(2)
-        do k=2,npm1
-          do j=2,ntm1
-            x(nr,j,k)= two*vmask*phi1(j,k)+pm_r1*x(nrm1,j,k)
+          do k=2,npm1
+            do j=2,ntm1
+              x(nr,j,k)=x(nrm1,j,k)+vmask*br1(j,k)*drn
+            enddo
           enddo
-        enddo
+        else
+!$acc parallel loop collapse(2) default(present) async(2)
+          do k=2,npm1
+            do j=2,ntm1
+              x(nr,j,k)=pm_r1*x(nrm1,j,k)
+            enddo
+          enddo
+        end if
       end if
 !$acc wait(1,2)
 c
@@ -6534,7 +5338,7 @@ c
 !$acc parallel loop present(sum0) async(1)
         do i=1,nr
           sum0(i)=0
-        enddo                     
+        enddo
 !$acc parallel loop collapse(2) default(present) async(1)
         do k=2,npm1
           do i=1,nr
@@ -6545,10 +5349,10 @@ c
       end if
 c
       if (tb1) then
-!$acc parallel loop present(sum1) async(2)               
+!$acc parallel loop present(sum1) async(2)
         do i=1,nr
-          sum1(i)=0       
-        enddo                   
+          sum1(i)=0
+        enddo
 !$acc parallel loop collapse(2) default(present) async(2)
         do k=2,npm1
           do i=1,nr
@@ -6586,89 +5390,6 @@ c
 c
       return
       end subroutine
-c#######################################################################
-      subroutine set_boundary_points_outer (x,vmask)
-c
-c-----------------------------------------------------------------------
-c
-c ****** Set boundary points of X at the physical boundaries.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use global_mesh
-      use local_dims_ro
-      use local_mesh_ro
-      use local_dims_tp
-      use local_mesh_tp
-      use fields
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), dimension(nr,nt,np) :: x
-      real(r_typ) :: vmask
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), parameter :: two=2._r_typ
-c
-c-----------------------------------------------------------------------
-c
-      integer :: i
-c
-c-----------------------------------------------------------------------
-c
-c ****** Set X at the radial boundaries.
-c
-      if (rb0) then
-        x(1,2:ntm1,2:npm1)= x(2,2:ntm1,2:npm1)
-     &                     -vmask*abs(br_ss(2:ntm1,2:npm1))*dr(1)
-      end if
-c
-      if (rb1) then
-        x(nr,2:ntm1,2:npm1)=-x(nrm1,2:ntm1,2:npm1)
-      end if
-c
-c ****** Get the m=0 component of X at the poles.
-c
-c ****** First do the local sum (on this processor).
-c
-      if (tb0) then
-        do i=1,nr
-          sum0(i)=sum(x(i,   2,2:npm1)*dph(2:npm1))*pl_i
-        enddo
-      end if
-c
-      if (tb1) then
-        do i=1,nr
-          sum1(i)=sum(x(i,ntm1,2:npm1)*dph(2:npm1))*pl_i
-        enddo
-      end if
-c
-c ****** Sum over all processors.
-c
-      call sum_over_phi (nr,sum0,sum1)
-c
-c ****** Set X to have only an m=0 component at the poles.
-c
-      if (tb0) then
-        do i=1,nr
-          x(i, 1,2:npm1)=two*sum0(i)-x(i,   2,2:npm1)
-        enddo
-      end if
-c
-      if (tb1) then
-        do i=1,nr
-          x(i,nt,2:npm1)=two*sum1(i)-x(i,ntm1,2:npm1)
-        enddo
-      end if
-c
-      return
-      end
 c#######################################################################
       subroutine sum_over_phi (n,a0,a1)
 c
@@ -6724,7 +5445,7 @@ c
       return
       end
 c#######################################################################
-      subroutine zero_boundary_points_inner (x)
+      subroutine zero_boundary_points (x)
 c
 c-----------------------------------------------------------------------
 c
@@ -6734,38 +5455,7 @@ c
 c-----------------------------------------------------------------------
 c
       use number_types
-      use local_dims_ri
-      use local_dims_tp
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), dimension(nr,nt,np) :: x
-c
-c-----------------------------------------------------------------------
-c
-      if (rb0) x( 1,:,:)=0.
-      if (rb1) x(nr,:,:)=0.
-      if (tb0) x(:, 1,:)=0.
-      if (tb1) x(:,nt,:)=0.
-c
-      return
-      end
-c#######################################################################
-      subroutine zero_boundary_points_outer (x)
-c
-c-----------------------------------------------------------------------
-c
-c ****** Set the boundary points at the physical boundaries
-c ****** of X to zero.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use local_dims_ro
+      use local_dims_r
       use local_dims_tp
 c
 c-----------------------------------------------------------------------
@@ -6905,215 +5595,6 @@ c
       return
       end
 c#######################################################################
-      subroutine seam_outer (a)
-c
-c-----------------------------------------------------------------------
-c
-c ****** Seam the boundary points of 3D array A between adjacent
-c ****** processors along all three dimensions.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use seam_3d_interface
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), dimension(:,:,:) :: a
-c
-c-----------------------------------------------------------------------
-c
-      call seam_3d (.true.,.true.,.true.,a)
-c
-      return
-      end
-c#######################################################################
-      subroutine seam_3d (seam1,seam2,seam3,a)
-c
-c-----------------------------------------------------------------------
-c
-c ****** Seam the boundary points of 3D (r,t,p) array A between
-c ****** adjacent processors.
-c
-c ****** The logical flags SEAM1, SEAM2, and SEAM3 indicate which
-c ****** dimensions are to be seamed.
-c
-c ****** This routine assumes that there is a two-point
-c ****** overlap between processors in each dimension.
-c
-c-----------------------------------------------------------------------
-c
-c ****** This version uses non-blocking MPI sends and receives
-c ****** whenever possible in order to overlap communications.
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use mpidefs
-      use timing
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      logical :: seam1,seam2,seam3
-      real(r_typ), dimension(:,:,:) :: a
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), dimension(size(a,2),size(a,3)) :: sbuf11,rbuf11
-      real(r_typ), dimension(size(a,2),size(a,3)) :: sbuf12,rbuf12
-      real(r_typ), dimension(size(a,1),size(a,3)) :: sbuf21,rbuf21
-      real(r_typ), dimension(size(a,1),size(a,3)) :: sbuf22,rbuf22
-      real(r_typ), dimension(size(a,1),size(a,2)) :: sbuf31,rbuf31
-      real(r_typ), dimension(size(a,1),size(a,2)) :: sbuf32,rbuf32
-c
-c-----------------------------------------------------------------------
-c
-c ****** MPI error return.
-c
-      integer :: ierr
-c
-c ****** MPI status array for MPI_WAIT.
-c
-      integer, dimension(MPI_STATUS_SIZE) :: istat
-c
-c ****** MPI tag for MPI_ISEND and MPI_IRECV (not tagged).
-c
-      integer :: tag=0
-c
-c-----------------------------------------------------------------------
-c
-      integer :: lbuf
-      integer :: n1,n2,n3
-      integer :: irecv1,isend1,irecv2,isend2
-c
-c-----------------------------------------------------------------------
-c
-c ****** Get the dimensions of the array.
-c
-      n1=size(a,1)
-      n2=size(a,2)
-      n3=size(a,3)
-c
-c ****** Seam the third (periodic) dimension.
-c
-      if (seam3) then
-c
-        lbuf=n1*n2
-c
-        sbuf31(:,:)=a(:,:,n3-1)
-        sbuf32(:,:)=a(:,:,   2)
-c
-        call timer_on
-        call MPI_Isend (sbuf31,lbuf,ntype_real,iproc_pp,tag,
-     &                  comm_all,isend1,ierr)
-c
-        call MPI_Isend (sbuf32,lbuf,ntype_real,iproc_pm,tag,
-     &                  comm_all,isend2,ierr)
-c
-        call MPI_Irecv (rbuf31,lbuf,ntype_real,iproc_pm,tag,
-     &                  comm_all,irecv1,ierr)
-c
-        call MPI_Irecv (rbuf32,lbuf,ntype_real,iproc_pp,tag,
-     &                  comm_all,irecv2,ierr)
-c
-        call MPI_Wait (isend1,istat,ierr)
-        call MPI_Wait (isend2,istat,ierr)
-        call MPI_Wait (irecv1,istat,ierr)
-        call MPI_Wait (irecv2,istat,ierr)
-        call timer_off (c_seam)
-c
-        a(:,:, 1)=rbuf31(:,:)
-        a(:,:,n3)=rbuf32(:,:)
-c
-      end if
-c
-c ****** Seam the first dimension.
-c
-      if (seam1.and.nproc_r.gt.1) then
-c
-        lbuf=n2*n3
-c
-        sbuf11(:,:)=a(n1-1,:,:)
-        sbuf12(:,:)=a(   2,:,:)
-c
-        call timer_on
-        call MPI_Isend (sbuf11,lbuf,ntype_real,iproc_rp,tag,
-     &                  comm_all,isend1,ierr)
-c
-        call MPI_Isend (sbuf12,lbuf,ntype_real,iproc_rm,tag,
-     &                  comm_all,isend2,ierr)
-c
-        call MPI_Irecv (rbuf11,lbuf,ntype_real,iproc_rm,tag,
-     &                  comm_all,irecv1,ierr)
-c
-        call MPI_Irecv (rbuf12,lbuf,ntype_real,iproc_rp,tag,
-     &                  comm_all,irecv2,ierr)
-c
-        call MPI_Wait (isend1,istat,ierr)
-        call MPI_Wait (isend2,istat,ierr)
-        call MPI_Wait (irecv1,istat,ierr)
-        call MPI_Wait (irecv2,istat,ierr)
-        call timer_off (c_seam)
-c
-        if (iproc_rm.ge.0) then
-          a( 1,:,:)=rbuf11(:,:)
-        end if
-c
-        if (iproc_rp.ge.0) then
-          a(n1,:,:)=rbuf12(:,:)
-        end if
-c
-      end if
-c
-c ****** Seam the second dimension.
-c
-      if (seam2.and.nproc_t.gt.1) then
-c
-        lbuf=n1*n3
-c
-        sbuf21(:,:)=a(:,n2-1,:)
-        sbuf22(:,:)=a(:,   2,:)
-c
-        call timer_on
-        call MPI_Isend (sbuf21,lbuf,ntype_real,iproc_tp,tag,
-     &                  comm_all,isend1,ierr)
-c
-        call MPI_Isend (sbuf22,lbuf,ntype_real,iproc_tm,tag,
-     &                  comm_all,isend2,ierr)
-c
-        call MPI_Irecv (rbuf21,lbuf,ntype_real,iproc_tm,tag,
-     &                  comm_all,irecv1,ierr)
-c
-        call MPI_Irecv (rbuf22,lbuf,ntype_real,iproc_tp,tag,
-     &                  comm_all,irecv2,ierr)
-c
-        call MPI_Wait (isend1,istat,ierr)
-        call MPI_Wait (isend2,istat,ierr)
-        call MPI_Wait (irecv1,istat,ierr)
-        call MPI_Wait (irecv2,istat,ierr)
-        call timer_off (c_seam)
-c
-        if (iproc_tm.ge.0) then
-          a(:, 1,:)=rbuf21(:,:)
-        end if
-c
-        if (iproc_tp.ge.0) then
-          a(:,n2,:)=rbuf22(:,:)
-        end if
-c
-      end if
-c
-      return
-      end
-c#######################################################################
       subroutine seam (a,n1,n2,n3)
 c
 c-----------------------------------------------------------------------
@@ -7226,7 +5707,7 @@ c
         if (iproc_rm.ne.MPI_PROC_NULL) then
 !$acc parallel loop collapse(2) present(a,rbuf11) async(1)
           do j=1,n3
-            do i=1,n2           
+            do i=1,n2
               a( 1,i,j)=rbuf11(i,j)
             enddo
           enddo
@@ -7235,7 +5716,7 @@ c
         if (iproc_rp.ne.MPI_PROC_NULL) then
 !$acc parallel loop collapse(2) present(a,rbuf12) async(2)
           do j=1,n3
-            do i=1,n2 
+            do i=1,n2
               a(n1,i,j)=rbuf12(i,j)
             enddo
           enddo
@@ -7280,19 +5761,19 @@ c
         if (iproc_tm.ne.MPI_PROC_NULL) then
 !$acc parallel loop collapse(2) present(a,rbuf21) async(1)
           do j=1,n3
-            do i=1,n1           
+            do i=1,n1
               a(i, 1,j)=rbuf21(i,j)
             enddo
-          enddo              
+          enddo
         end if
 c
         if (iproc_tp.ne.MPI_PROC_NULL) then
 !$acc parallel loop collapse(2) present(a,rbuf22) async(2)
           do j=1,n3
-            do i=1,n1            
+            do i=1,n1
               a(i,n2,j)=rbuf22(i,j)
             enddo
-          enddo  
+          enddo
         end if
 !$acc wait(1,2)
 c
@@ -7304,7 +5785,7 @@ c
       return
       end subroutine
 c#######################################################################
-      subroutine write_solution (final)
+      subroutine write_solution
 c
 c-----------------------------------------------------------------------
 c
@@ -7328,10 +5809,6 @@ c
 c
 c-----------------------------------------------------------------------
 c
-      logical :: final
-c
-c-----------------------------------------------------------------------
-c
 c ****** Declaration for the global arrays.
 c ****** These arrays are only allocated on processor IPROC0.
 c
@@ -7343,20 +5820,9 @@ c
 c-----------------------------------------------------------------------
 c
       integer :: ierr
-      integer, save :: iseq=0
-      character(3) :: seq
       character(256) :: fname
 c
 c-----------------------------------------------------------------------
-c
-c ****** Get seq number for iterative runs.
-c
-      if (.not.final) then
-        iseq=iseq+1
-        write (seq,'(i3.3)') iseq
-      else
-        seq=' '
-      end if
 c
 c ****** Potential.
 c
@@ -7373,26 +5839,17 @@ c
 c
 c ****** Assemble the global PHI array.
 c
-        call assemble_array (map_rih,map_th,map_ph,phi,phi_g)
-        if (outer_solve_needed) then
-          call assemble_array (map_roh,map_th,map_ph,phio,phi_g)
-        end if
+        call assemble_array (map_rh,map_th,map_ph,phi,phi_g)
 c
-        if (.not.final) then
-          fname='phi'//seq//'.'//trim(fmt)
-        else
-          fname=phifile
-        end if
+        fname=phifile
 c
 c ****** Write out the potential to a file.
 c
         if (iamp0) then
-            if (final) then
-              write (*,*)
-              write (*,*) '### COMMENT from WRITE_SOLUTION:'
-              write (*,*)
-              write (*,*) 'Writing the potential to file: ',trim(fname)
-            end if
+            write (*,*)
+            write (*,*) '### COMMENT from WRITE_SOLUTION:'
+            write (*,*)
+            write (*,*) 'Writing the potential to file: ',trim(fname)
             call wrhdf_3d (fname,.true.,nr_g,nt_g,np_g,
      &                     phi_g,rh_g,th_g,ph_g,hdf32,ierr)
         end if
@@ -7406,11 +5863,7 @@ c
       if (brfile.ne.'') then
 !$acc update self(br)
 c
-        if (.not.final) then
-          fname='br'//seq//'.'//trim(fmt)
-        else
-          fname=brfile
-        end if
+        fname=brfile
 c
         if (iamp0) then
           allocate (br_g(nrm1_g,nt_g,np_g))
@@ -7420,15 +5873,13 @@ c
 c
 c ****** Assemble the global PHI array.
 c
-        call assemble_array (map_rim,map_th,map_ph,br,br_g)
+        call assemble_array (map_rm,map_th,map_ph,br,br_g)
 c
         if (iamp0) then
-          if (final) then
-            write (*,*)
-            write (*,*) '### COMMENT from WRITE_SOLUTION:'
-            write (*,*)
-            write (*,*) 'Writing Br to file: ',trim(fname)
-          end if
+          write (*,*)
+          write (*,*) '### COMMENT from WRITE_SOLUTION:'
+          write (*,*)
+          write (*,*) 'Writing Br to file: ',trim(fname)
           call wrhdf_3d (fname,.true.,nrm1_g,nt_g,np_g,
      &                   br_g,r_g,th_g,ph_g,hdf32,ierr)
         end if
@@ -7442,11 +5893,7 @@ c
       if (btfile.ne.'') then
 !$acc update self(bt)
 c
-        if (.not.final) then
-          fname='bt'//seq//'.'//trim(fmt)
-        else
-          fname=btfile
-        end if
+        fname=btfile
 c
         if (iamp0) then
           allocate (bt_g(nr_g,ntm1_g,np_g))
@@ -7456,15 +5903,13 @@ c
 c
 c ****** Assemble the global PHI array.
 c
-        call assemble_array (map_rih,map_tm,map_ph,bt,bt_g)
+        call assemble_array (map_rh,map_tm,map_ph,bt,bt_g)
 c
         if (iamp0) then
-          if (final) then
-            write (*,*)
-            write (*,*) '### COMMENT from WRITE_SOLUTION:'
-            write (*,*)
-            write (*,*) 'Writing Bt to file: ',trim(fname)
-          end if
+          write (*,*)
+          write (*,*) '### COMMENT from WRITE_SOLUTION:'
+          write (*,*)
+          write (*,*) 'Writing Bt to file: ',trim(fname)
           call wrhdf_3d (fname,.true.,nr_g,ntm1_g,np_g,
      &                   bt_g,rh_g,t_g,ph_g,hdf32,ierr)
 c
@@ -7479,11 +5924,7 @@ c
       if (bpfile.ne.'') then
 !$acc update self(bp)
 c
-        if (.not.final) then
-          fname='bp'//seq//'.'//trim(fmt)
-        else
-          fname=bpfile
-        end if
+        fname=bpfile
 c
         if (iamp0) then
           allocate (bp_g(nr_g,nt_g,npm1_g))
@@ -7493,15 +5934,13 @@ c
 c
 c ****** Assemble the global PHI array.
 c
-        call assemble_array (map_rih,map_th,map_pm,bp,bp_g)
+        call assemble_array (map_rh,map_th,map_pm,bp,bp_g)
 c
         if (iamp0) then
-          if (final) then
-            write (*,*)
-            write (*,*) '### COMMENT from WRITE_SOLUTION:'
-            write (*,*)
-            write (*,*) 'Writing Bp to file: ',trim(fname)
-          end if
+          write (*,*)
+          write (*,*) '### COMMENT from WRITE_SOLUTION:'
+          write (*,*)
+          write (*,*) 'Writing Bp to file: ',trim(fname)
           call wrhdf_3d (fname,.true.,nr_g,nt_g,npm1_g,
      &                   bp_g,rh_g,th_g,p_g,hdf32,ierr)
 c
@@ -7527,18 +5966,14 @@ c
       use global_mesh
       use vars
       use fields
-      use local_dims_ri
+      use local_dims_r
       use local_dims_tp
-      use local_mesh_ri
+      use local_mesh_r
       use local_mesh_tp
 c
 c-----------------------------------------------------------------------
 c
       implicit none
-c
-c-----------------------------------------------------------------------
-c
-      real(r_typ), parameter :: half=.5_r_typ
 c
 c-----------------------------------------------------------------------
 c
@@ -7598,9 +6033,9 @@ c
       use vars
       use fields
       use mpidefs
-      use local_dims_ri
+      use local_dims_r
       use local_dims_tp
-      use local_mesh_ri
+      use local_mesh_r
       use local_mesh_tp
 c
 c-----------------------------------------------------------------------
@@ -7776,7 +6211,7 @@ c ****** Otherwise recieve data:
 c
 c ****** Send local array to iproc0.
 c
-        call MPI_Ssend (sbuf,lsbuf,ntype_real,iproc0,tag,comm_all,ierr)
+      call MPI_Ssend (sbuf,lsbuf,ntype_real,iproc0,tag,comm_all,ierr)
 c
       end if
       deallocate (sbuf)
@@ -8533,16 +6968,32 @@ c       - Small updates to magnetic_energy routine.
 c
 c ### Version 2.22, 11/27/2019, file pot3d.f, modified by RC:
 c
-c       - Optimized some OpenACC directives.  Expanded some 
+c       - Optimized some OpenACC directives.  Expanded some
 c         array-syntax lines to full loops.
 c
 c ### Version 2.23, 08/11/2020, file pot3d.f, modified by RC:
 c
-c       - Small bug fix for default output file names and 
+c       - Small bug fix for default output file names and
 c         format option fmt.
 c
 c ### Version 3.0.0, 02/10/2021, file pot3d.f, modified by RC:
 c
 c       - Changed version number scheme to semantic versioning.
+c
+c ### Version 3.1.0, 08/11/2020, file pot3d.f, modified by RC:
+c
+c       - Removed ss+cs inner-outer iterative mode.
+c         It had not been used in many years and never worked
+c         quite right.  Algorithm is saved in previous releases
+c         on the github and svn.
+c       - Added a validation run mode.  To activate, set:
+c         VALIDATION_RUN=.TRUE.
+c         This will set up a tilted dipole exact solution, write it
+c         out, and then solve for it.  It will ignore input br files.
+c         To change the angle of the dipole, set DIPOLE_ANGLE
+c         (default is pi/4).
+c       - Added NCGFLUSH parameter to flush output file during solver
+c         iterations if NCGHIST>0 every NCGFLUSH iteration (default 25).
+c         This is useful to track progress of the solver.
 c
 c#######################################################################

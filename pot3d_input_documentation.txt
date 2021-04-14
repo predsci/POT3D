@@ -19,6 +19,9 @@
                               !  'open'      Open field.  Used for current sheet (CS)
                               !              and fully open field runs.
                               !              Note! Resulting B field will be unsigned.
+  validation_run=.false.      !  Set this to run a validation test with an analytic tilted 
+                              !  dipole solution. This overrides other inputs.
+  dipole_angle=0.7853981633974483  !  Angle to tilt dipole in validation run.
 !
 ! ****** Input options.
 !
@@ -95,10 +98,12 @@
   epscg=1.e-9                 ! Solver convergence tolerance, |residual|/|right-hand-side|.
 !
   ncghist=0                   ! Iteration information.
-                              !   0    Only writes out total iterations.
-                              !   1    Writes out residuals for all iterations.
+                              !   0    Only writes out total iteration number.
+                              !   >0   Writes out every NCGHIST iteration residual.
 !
-  ncgmax=10000000             ! Maximum solver iterations.
+  ncgflush=25                 ! Flush output file every NGCFLUSH iterations.
+!
+  ncgmax=5000             ! Maximum solver iterations.
                               ! If solver does not converge in ncgmax iterations,
                               ! the code will exit with an error.
 !
