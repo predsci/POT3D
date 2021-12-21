@@ -33,10 +33,10 @@ HDF5_LIB_FLAGS="-lhdf5_serial_fortran -lhdf5_serialhl_fortran -lhdf5_serial -lhd
 ###########################################################################
 # Please set the compile flags based on your compiler and hardware setup.
 # Examples:
-#   GNU (CPU):     FFLAGS="-O3 -mtune=native "
-#   NV/PGI (CPU):  FFLAGS="-O3"
-#   NV/PGI (GPU):  FFLAGS="-O3 -acc=gpu -gpu=cc60,cc70,cuda11.2 -Minfo=accel"
-#   INTEL (CPU):   FFLAGS="-O3 -fp-model precise -assume byterecl -heap-arrays -xCORE-AVX2 -axCORE-AVX512"
+#   GNU       (CPU):  FFLAGS="-O3 -mtune=native "
+#   NVFORTRAN (CPU):  FFLAGS="-O3"
+#   NVFORTRAN (GPU):  FFLAGS="-O3 -acc=gpu -gpu=cc61,cc75,cuda11.4 -Minfo=accel"
+#   IFORT     (CPU):  FFLAGS="-O3 -fp-model precise -assume byterecl -heap-arrays -xCORE-AVX2 -axCORE-AVX512"
 ###########################################################################
 
 FFLAGS="-O3"

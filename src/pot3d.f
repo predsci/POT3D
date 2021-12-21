@@ -51,8 +51,8 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='r3.1.0'
-      character(*), parameter :: update='04/14/2021'
+      character(*), parameter :: vers  ='r3.2.0'
+      character(*), parameter :: update='12/21/2021'
 c
       end module
 c#######################################################################
@@ -309,13 +309,9 @@ c ****** Number type for REALs to be used in MPI calls.
 c
       integer :: ntype_real
 c
-c ****** Total number of GPUs/node (for multi-GPU OpenACC runs).
+c ****** Total number of GPUs/node (DEPRICATED).
 c
       integer :: gpn=0
-c
-c ****** GPU device number for current rank.
-c
-      integer :: igpu
 c
       end module
 c#######################################################################
@@ -462,13 +458,13 @@ c
       implicit none
 c
       character(256) :: outfile='pot3d.out'
-      character(256) :: phifile=''
-      character(256) :: br0file=''
-      character(256) :: brfile=''
-      character(256) :: btfile=''
-      character(256) :: bpfile=''
-      character(256) :: br_photo_file=''
-      character(256) :: br_photo_original_file=''
+      character(256) :: phifile='default'
+      character(256) :: br0file='default'
+      character(256) :: brfile='default'
+      character(256) :: btfile='default'
+      character(256) :: bpfile='default'
+      character(256) :: br_photo_file='default'
+      character(256) :: br_photo_original_file='default'
 c
 c ****** Type of field solution.
 c ****** Select between 'potential', 'open', and 'source-surface'.
@@ -623,7 +619,7 @@ c
 c
 c-----------------------------------------------------------------------
 c
-      integer :: ierr,i
+      integer :: ierr
 c
 c-----------------------------------------------------------------------
 c
@@ -668,16 +664,6 @@ c
 c ****** Check the processor topology.
 c
       call check_proc_topology
-c
-c ****** Set the GPU device number based on rank and gpn.
-c
-      if (gpn.eq.0) gpn=nprocsh
-      if (gpn.ne.nprocsh) then
-        write(*,*) ' '
-        write(*,*) 'Warning! GPUs per node != MPI ranks per node.'
-      endif
-      igpu=MODULO(iprocsh,gpn)
-!$acc set device_num(igpu)
 c
 c ****** Decompose the domain.
 c
@@ -889,21 +875,46 @@ c
         call endrun (.true.)
       end if
 c
-c ****** Set default names of output files (uses default fmt).
-c
-      phifile='phi.'//trim(fmt)
-      br0file='br0.'//trim(fmt)
-      brfile='br.'//trim(fmt)
-      btfile='bt.'//trim(fmt)
-      bpfile='bp.'//trim(fmt)
-      br_photo_file='br_photo.'//trim(fmt)
-      br_photo_original_file='br_photo_original.'//trim(fmt)
-c
       read (8,topology)
 c
       read (8,inputvars)
 c
       close (8)
+c
+      if (trim(fmt).ne.'h5') then
+        if (iamp0) then
+          write (*,*)
+          write (*,*) '### ERROR in READ_INPUT_FILE:'
+          write (*,*) '### "fmt" must be "h5".'
+          write (*,*) 'fmt: ',trim(fmt)
+        end if
+        call endrun (.true.)
+      end if
+c
+c ****** Check if output names were overwritten.
+c ****** If not, set default names with format fmt.
+c
+      if (trim(phifile).eq.'default') then
+        phifile='phi.'//trim(fmt)
+      end if
+      if (trim(br0file).eq.'default') then
+        br0file='br0.'//trim(fmt)
+      end if
+      if (trim(brfile).eq.'default') then
+        brfile='br.'//trim(fmt)
+      end if
+      if (trim(btfile).eq.'default') then
+        btfile='bt.'//trim(fmt)
+      end if
+      if (trim(bpfile).eq.'default') then
+        bpfile='bp.'//trim(fmt)
+      end if
+      if (trim(br_photo_file).eq.'default') then
+        br_photo_file='br_photo.'//trim(fmt)
+      end if
+      if (trim(br_photo_original_file).eq.'default') then
+        br_photo_original_file='br_photo_original.'//trim(fmt)
+      end if
 c
       nr_g=nr
       nt_g=nt
@@ -917,8 +928,7 @@ c
       ntm1_g=nt_g-1
       npm1_g=np_g-1
 c
-      return
-      end
+      end subroutine
 c#######################################################################
       subroutine check_error_on_p0 (ierr0)
 c
@@ -1089,8 +1099,12 @@ c
         call endrun (.true.)
       end if
 c
-      return
-      end
+c ****** Set the GPU device number based on local rank.
+c ****** NOTE! This assumes than #GPUs per node = #MPI ranks per node.
+c
+!$acc set device_num(iprocsh)
+c      
+      end subroutine
 c#######################################################################
       subroutine check_input
 c
@@ -1202,7 +1216,8 @@ c
       real(r_typ), dimension(:,:), allocatable :: nperrank
       real(r_typ), dimension(:), allocatable :: penalty
 c
-      integer :: i,j,k,fr,ft,fp,num_fac,num_rank_fac,best_idx
+      integer :: i,j,k,num_fac,num_rank_fac,best_idx
+      integer :: fr=1,ft=1,fp=1
       real(r_typ) :: a12,a13,a23
 c
 c-----------------------------------------------------------------------
@@ -3869,7 +3884,7 @@ c
 c
 c-----------------------------------------------------------------------
 c
-      integer :: j,k,ierr
+      integer :: j,k
       real(r_typ) :: sum00,sum11
 c
 c-----------------------------------------------------------------------
@@ -3957,16 +3972,6 @@ c-----------------------------------------------------------------------
 c
       integer :: i,j,k
       character(256) :: fnamephi,fnamebr,fnamebt,fnamebp
-c
-c-----------------------------------------------------------------------
-c
-c ****** Declaration for the global arrays.
-c ****** These arrays are only allocated on processor IPROC0.
-c
-      real(r_typ), dimension(:,:,:), allocatable :: phi_g
-      real(r_typ), dimension(:,:,:), allocatable :: br_g
-      real(r_typ), dimension(:,:,:), allocatable :: bt_g
-      real(r_typ), dimension(:,:,:), allocatable :: bp_g
 c
 c-----------------------------------------------------------------------
 c
@@ -5087,7 +5092,7 @@ c
 c
       elseif (ifprec.eq.2) then
 c
-c ****** SGS or ILU Partial-Block-Jacobi:
+c ****** ILU0 Partial-Block-Jacobi:
 c
 !$acc update self(x)
         call lusol (N,M,x,lu_csr,lu_csr_ja,a_N1,a_N2,a_csr_d)
@@ -6995,5 +7000,20 @@ c         (default is pi/4).
 c       - Added NCGFLUSH parameter to flush output file during solver
 c         iterations if NCGHIST>0 every NCGFLUSH iteration (default 25).
 c         This is useful to track progress of the solver.
+c
+c ### Version 3.1.1, 11/02/2021, modified by RC:
+c
+c       - Fixed default output name mechanics.  The default names
+c         were ignoring "fmt", making "fmt" almost useless.
+c
+c ### Version 3.2.0, 12/21/2021, modified by RC:
+c
+c       - GPN is now depricated.  Now, # of GPUs per node is assumed
+c         to be equal to # of MPI ranks per node.
+c         This removes the ability to oversubscribe GPUs, but this
+c         was not being used ever, so no great loss.
+c         This change was done to allow setting the gpu device
+c         number before any allocations so that it works correctly
+c         when using NVIDIA unified managed memory.
 c
 c#######################################################################
