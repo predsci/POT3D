@@ -1,0 +1,11 @@
+/bin
+/src/pot3d
+
+*.mod
+*.o
+*.err
+*.log
+*.out
+
+Makefile
+clean
