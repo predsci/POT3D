@@ -16,6 +16,7 @@ c        Authors:  Zoran Mikic
 c                  Ronald M. Caplan
 c                  Jon A. Linker
 c                  Roberto Lionello
+c                  Miko Stulajter
 c
 c        Predictive Science Inc.
 c        www.predsci.com
@@ -51,8 +52,25 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='r3.2.0'
-      character(*), parameter :: update='12/21/2021'
+      character(*), parameter :: vers  ='r3.3.0'
+      character(*), parameter :: update='02/14/2022'
+c
+      end module
+c#######################################################################
+      module number_types_pc
+c
+c-----------------------------------------------------------------------
+c
+      use number_types
+      use iso_fortran_env
+c
+c-----------------------------------------------------------------------
+c
+      implicit none
+c
+c-----------------------------------------------------------------------
+c
+      integer, parameter :: r_typ_pc=REAL32
 c
       end module
 c#######################################################################
@@ -237,7 +255,7 @@ c ****** MPI variables, processor topology, and processor information.
 c-----------------------------------------------------------------------
 c
       use mpi
-c      
+c
       implicit none
 c
 c ****** Total number of processors.
@@ -540,7 +558,10 @@ c
 c
       real(r_typ) :: t_startup=0.
       real(r_typ) :: t_solve=0.
-      real(r_typ) :: t_write_phi=0.
+      real(r_typ) :: t_pc_load=0.
+      real(r_typ) :: t_pc=0.
+      real(r_typ) :: t_ax=0.
+      real(r_typ) :: t_io=0.
       real(r_typ) :: c_seam=0.
       real(r_typ) :: c_cgdot=0.
       real(r_typ) :: c_sumphi=0.
@@ -580,20 +601,19 @@ c ****** Storage for the matrix/preconditioners of the solve.
 c-----------------------------------------------------------------------
 c
       use number_types
+      use number_types_pc
 c
       implicit none
 c
       real(r_typ), dimension(:,:,:,:), allocatable :: a
-      real(r_typ), dimension(:), allocatable :: a_i
+      real(r_typ_pc), dimension(:), allocatable :: a_i
 c
       integer, dimension(7) :: a_offsets
 
       integer :: N,M
-
-      real(r_typ), dimension(:), allocatable :: a_csr
-      real(r_typ), dimension(:), allocatable :: lu_csr
-      real(r_typ), dimension(:), allocatable :: a_csr_x
-      real(r_typ), dimension(:), allocatable :: a_csr_d
+      real(r_typ_pc), dimension(:), allocatable :: a_csr
+      real(r_typ_pc), dimension(:), allocatable :: lu_csr
+      real(r_typ_pc), dimension(:), allocatable :: a_csr_d
       integer, dimension(:), allocatable :: lu_csr_ja
       integer, dimension(:), allocatable :: a_csr_ia
       integer, dimension(:), allocatable :: a_csr_ja
@@ -750,9 +770,7 @@ c
 c
 c ****** Write solution to file.
 c
-      call timer_on
       call write_solution
-      call timer_off (t_write_phi)
 c
 c ****** Magnetic energy diagnostics.
 c
@@ -3641,6 +3659,7 @@ c
       use fields
       use vars
       use mpidefs
+      use timing
 c
 c-----------------------------------------------------------------------
 c
@@ -3657,6 +3676,8 @@ c
       integer :: j,k,ierr
 c
 c-----------------------------------------------------------------------
+c
+      call timer_on
 c
       allocate (br0_g(nt_g,np_g))
 c
@@ -3731,8 +3752,9 @@ c
 c
       deallocate(br0_g)
 c
-      return
-      end
+      call timer_off (t_io)
+c
+      end subroutine
 c#######################################################################
       subroutine potfld
 c
@@ -3795,15 +3817,14 @@ c
       allocate(x_cg(N))
       rhs_cg(:)=0.
       x_cg(:)=0.
-!$acc enter data copyin(rhs_cg,x_cg) async(1)
+!$acc enter data copyin(rhs_cg,x_cg)
 c
       call getM (N,a_offsets,M)
       call alloc_pot3d_matrix_coefs
       call load_matrix_pot3d_solve
-!$acc enter data copyin(a) async(1)
+!$acc enter data copyin(a)
       call load_preconditioner_pot3d_solve
-!$acc enter data copyin(a_i) async(1)
-!$acc wait(1)
+!$acc enter data copyin(a_i)
 c
 c ****** Use a trick to accumulate the contribution of the
 c ****** boundary conditions (i.e., the inhomogenous part).
@@ -4263,8 +4284,7 @@ c
       enddo
 c
 !$acc exit data delete(p,ap)
-      return
-      end
+      end subroutine
 c#######################################################################
       subroutine ernorm (bdotb,rdotr,ierr)
 c
@@ -4415,7 +4435,6 @@ c
         allocate (lu_csr_ja(M))
         allocate (a_csr_ja(M))
         allocate (a_csr_ia(1+N))
-        allocate (a_csr_x(N))
         allocate (a_N1(N))
         allocate (a_N2(N))
         allocate (a_csr_d(N))
@@ -4445,6 +4464,7 @@ c-----------------------------------------------------------------------
 c
       deallocate (a)
       deallocate (a_i)
+!$acc exit data delete(a,a_i)
 c
       if (ifprec.eq.2) then
         deallocate (a_csr)
@@ -4452,15 +4472,13 @@ c
         deallocate (lu_csr_ja)
         deallocate (a_csr_ia)
         deallocate (a_csr_ja)
-        deallocate (a_csr_x)
         deallocate (a_csr_d)
         deallocate (a_N1)
         deallocate (a_N2)
         deallocate (a_csr_dptr)
       endif
 c
-      return
-      end
+      end subroutine
 c#######################################################################
       subroutine load_matrix_pot3d_solve
 c
@@ -4528,6 +4546,7 @@ c
       use cgcom
       use local_dims_r
       use local_dims_tp
+      use timing
 c
 c-----------------------------------------------------------------------
 c
@@ -4543,6 +4562,8 @@ c
 c
 c-----------------------------------------------------------------------
 c
+      call timer_on
+c
       if (ifprec.eq.0) return
 c
       if (ifprec.eq.1) then
@@ -4554,7 +4575,7 @@ c
           do j=2,ntm1
             do i=2,nrm1
               ii=ii+1
-              a_i(ii)=one/a(i,j,k,4)
+              a_i(ii)=real(one/a(i,j,k,4),r_typ_pc)
             enddo
           enddo
         enddo
@@ -4590,8 +4611,9 @@ c
 c
       endif
 c
-      return
-      end
+      call timer_off (t_pc_load)
+c
+      end subroutine
 c#######################################################################
       subroutine ilu0 (N,M,A,JA,IA,A_da,icode)
 c
@@ -4628,6 +4650,7 @@ c             (k): Encountered a zero pivot at step k.
 c------------------------------------------------------------
 c
       use number_types
+      use number_types_pc
 c
 c-----------------------------------------------------------------------
 c
@@ -4637,12 +4660,12 @@ c-----------------------------------------------------------------------
 c
       integer :: JA(M),IA(N+1),A_da(N),iw(N)
       integer :: icode,N,M
-      real(r_typ) :: A(M)
+      real(r_typ_pc) :: A(M)
 c
 c-----------------------------------------------------------------------
 c
       integer :: i,ik,kj,k,ij,IA_i,IA_ip1m1
-      real(r_typ) :: Aik
+      real(r_typ_pc) :: Aik
 c
 c-----------------------------------------------------------------------
 c
@@ -4688,8 +4711,7 @@ c       Reset scratch index array:
         enddo
       enddo
 c
-      return
-      end
+      end subroutine
 c#######################################################################
       subroutine lu2luopt (N,M,LU,A,IA,JA,LUJA,A_da,N1,N2)
 c
@@ -4702,6 +4724,7 @@ c
 c-----------------------------------------------------------------------
 c
       use number_types
+      use number_types_pc
 c
 c-----------------------------------------------------------------------
 c
@@ -4712,7 +4735,7 @@ c
       integer :: N,M
       integer :: JA(M),LUJA(M),IA(N+1),A_da(N)
       integer :: N1(N),N2(N)
-      real(r_typ) :: A(M),LU(M)
+      real(r_typ_pc) :: A(M),LU(M)
 c
 c-----------------------------------------------------------------------
 c
@@ -4743,8 +4766,7 @@ c
         enddo
       enddo
 c
-      return
-      end
+      end subroutine
 c#######################################################################
       subroutine diacsr (N,M,Adia,ioff,Acsr,JA,IA,Adptr)
 c
@@ -4772,6 +4794,7 @@ c
 c-----------------------------------------------------------------------
 c
       use number_types
+      use number_types_pc
       use local_dims_r
       use local_dims_tp
       use mpidefs
@@ -4786,7 +4809,7 @@ c
 c
 c-----------------------------------------------------------------------
 c
-      real (r_typ) :: Acsr(M)
+      real (r_typ_pc) :: Acsr(M)
       real (r_typ) :: Adia(N,IDIAG)
       integer :: N,M
       integer :: Adptr(N)
@@ -4860,7 +4883,7 @@ c
                 j=i+ioff(jj)-x
                 if (j.gt.N-x) then
                   j=j-N
-                  Acsr(ko)=Adia(i,jj)
+                  Acsr(ko)=real(Adia(i,jj),r_typ_pc)
                   JA(ko)=j
                   ko=ko+1
                 endif
@@ -4875,7 +4898,7 @@ c
                 if (j.ge.1.and.j.le.N-x) then
 c                 Store pointer to diagonal elements in A:
                   if (jj.eq.4) Adptr(i)=ko
-                  Acsr(ko)=Adia(i,jj)
+                  Acsr(ko)=real(Adia(i,jj),r_typ_pc)
                   JA(ko)=j
                   ko=ko+1
                 endif
@@ -4889,7 +4912,7 @@ c
                 j=i+ioff(jj)-x
                 if (j.lt.1) then
                   j=N+j
-                  Acsr(ko)=Adia(i,jj)
+                  Acsr(ko)=real(Adia(i,jj),r_typ_pc)
                   JA(ko)=j
                   ko=ko+1
                 endif
@@ -5020,6 +5043,7 @@ c
       use local_dims_r
       use local_dims_tp
       use fields, ONLY : x_ax
+      use timing
 c
 c-----------------------------------------------------------------------
 c
@@ -5050,10 +5074,13 @@ c
 c
 c ****** Get the matrix-vector product.
 c
+      call timer_on
+c
       call delsq (x_ax,y)
 c
-      return
-      end
+      call timer_off (t_ax)
+c
+      end subroutine
 c#######################################################################
       subroutine prec_inv (x)
 c
@@ -5064,9 +5091,11 @@ c
 c-----------------------------------------------------------------------
 c
       use number_types
+      use number_types_pc
       use cgcom
       use solve_params
       use matrix_storage_pot3d_solve
+      use timing
 c
 c-----------------------------------------------------------------------
 c
@@ -5075,11 +5104,14 @@ c
 c-----------------------------------------------------------------------
 c
       real(r_typ), dimension(N) :: x
+      real(r_typ_pc), dimension(N) :: x_32
       integer :: i
 c
 c-----------------------------------------------------------------------
 c
       if (ifprec.eq.0) return
+c
+      call timer_on
 c
       if (ifprec.eq.1) then
 c
@@ -5091,16 +5123,30 @@ c
         enddo
 c
       elseif (ifprec.eq.2) then
+!$acc update self(x)
 c
 c ****** ILU0 Partial-Block-Jacobi:
 c
-!$acc update self(x)
-        call lusol (N,M,x,lu_csr,lu_csr_ja,a_N1,a_N2,a_csr_d)
+c ****** Convert input array to single precision.
+c
+        do i=1,N
+          x_32(i) = real(x(i),r_typ_pc)
+        enddo
+c
+        call lusol (N,M,x_32,lu_csr,lu_csr_ja,a_N1,a_N2,a_csr_d)
+c
+c ****** Convert result back to double precision.
+c
+        do i=1,N
+          x(i) = real(x_32(i),r_typ)
+        enddo
+c
 !$acc update device(x)
       endif
 c
-      return
-      end
+      call timer_off (t_pc)
+c
+      end subroutine
 c#######################################################################
       subroutine lusol (N,M,x,LU,LU_ja,N1,N2,LUd_i)
 c
@@ -5133,6 +5179,7 @@ c     LUd_i : Inverse diagonal elements of U
 c------------------------------------------------------------
 c
       use number_types
+      use number_types_pc
 c
 c-----------------------------------------------------------------------
 c
@@ -5140,7 +5187,7 @@ c
 c
 c-----------------------------------------------------------------------
 c
-      real(r_typ) :: x(N),LUd_i(N),LU(M)
+      real(r_typ_pc) :: x(N),LUd_i(N),LU(M)
       integer :: N1(N),N2(N),LU_ja(M)
       integer :: N,M
 c
@@ -5176,8 +5223,7 @@ c       Compute x(i) := x(i) / U(i,i)
         x(i)=x(i)*LUd_i(i)
       enddo
 c
-      return
-      end
+      end subroutine
 c#######################################################################
       subroutine unpack_scalar (s,x)
 c
@@ -5490,7 +5536,6 @@ c
 c-----------------------------------------------------------------------
 c
       use number_types
-      use timing
 c
 c-----------------------------------------------------------------------
 c
@@ -5505,6 +5550,7 @@ c
 c-----------------------------------------------------------------------
 c
       cgdot=0.
+c
 !$acc parallel loop present(x,y) reduction(+:cgdot)
       do i=1,N
         cgdot=cgdot+x(i)*y(i)
@@ -5512,12 +5558,10 @@ c
 c
 c ****** Sum over all the processors.
 c
-      call timer_on
       call global_sum (cgdot)
-      call timer_off (c_cgdot)
 c
       return
-      end
+      end function
 c#######################################################################
       subroutine global_sum (x)
 c
@@ -5529,6 +5573,7 @@ c-----------------------------------------------------------------------
 c
       use number_types
       use mpidefs
+      use timing
 c
 c-----------------------------------------------------------------------
 c
@@ -5546,59 +5591,16 @@ c
 c
 c-----------------------------------------------------------------------
 c
+      call timer_on
+c
 c ****** Take the sum over all the processors.
 c
       call MPI_Allreduce (MPI_IN_PLACE,x,1,ntype_real,
      &                    MPI_SUM,comm_all,ierr)
 c
-      return
-      end
-c#######################################################################
-      subroutine global_sum_v (n,x)
+      call timer_off (c_cgdot)
 c
-c-----------------------------------------------------------------------
-c
-c ****** Return the sum of each element of the array X
-c ****** over all processors.
-c
-c ****** Each element of the array X is overwritten by its sum
-c ****** over all processors upon return.
-c
-c-----------------------------------------------------------------------
-c
-c ****** This routine is used for efficiency in communication
-c ****** when multiple max operations are needed (rather than
-c ****** calling GLOBAL_SUM multiple times in sequence).
-c
-c-----------------------------------------------------------------------
-c
-      use number_types
-      use mpidefs
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer :: n
-      real(r_typ), dimension(n) :: x
-c
-c-----------------------------------------------------------------------
-c
-c ****** MPI error return.
-c
-      integer :: ierr
-c
-c-----------------------------------------------------------------------
-c
-c ****** Take the sum over all the processors.
-c
-      call MPI_Allreduce (MPI_IN_PLACE,x,n,ntype_real,
-     &                    MPI_SUM,comm_all,ierr)
-c
-      return
-      end
+      end subroutine
 c#######################################################################
       subroutine seam (a,n1,n2,n3)
 c
@@ -5787,7 +5789,6 @@ c
 c
       call timer_off (c_seam)
 c
-      return
       end subroutine
 c#######################################################################
       subroutine write_solution
@@ -5807,6 +5808,7 @@ c
       use mpidefs
       use decomposition
       use assemble_array_interface
+      use timing
 c
 c-----------------------------------------------------------------------
 c
@@ -5828,6 +5830,8 @@ c
       character(256) :: fname
 c
 c-----------------------------------------------------------------------
+c
+      call timer_on
 c
 c ****** Potential.
 c
@@ -5955,8 +5959,9 @@ c
 c
       end if
 c
-      return
-      end
+      call timer_off (t_io)
+c
+      end subroutine
 c#######################################################################
       subroutine getb
 c
@@ -6332,7 +6337,7 @@ c-----------------------------------------------------------------------
 c
 c ****** Timing buffers.
 c
-      integer, parameter :: lbuf=7
+      integer, parameter :: lbuf=10
       real(r_typ), dimension(lbuf) :: sbuf
       real(r_typ), dimension(lbuf,0:nproc-1) :: tbuf
 c
@@ -6353,11 +6358,14 @@ c ****** Gather the timing information for all processors into TBUF.
 c
       sbuf(1)=t_solve
       sbuf(2)=t_startup
-      sbuf(3)=t_write_phi
-      sbuf(4)=c_seam
-      sbuf(5)=c_cgdot
-      sbuf(6)=c_sumphi
-      sbuf(7)=t_wall
+      sbuf(3)=t_io
+      sbuf(4)=t_ax
+      sbuf(5)=t_pc_load
+      sbuf(6)=t_pc
+      sbuf(7)=c_seam
+      sbuf(8)=c_cgdot
+      sbuf(9)=c_sumphi
+      sbuf(10)=t_wall
 c
       call MPI_Allgather (sbuf,lbuf,ntype_real,
      &                    tbuf,lbuf,ntype_real,comm_all,ierr)
@@ -6374,8 +6382,8 @@ c
       enddo
       tsdev(:)=sqrt(tsdev(:)/nproc)
 c
-      t_tot_avg=tavg(7)
-      c_tot_avg=tavg(4)+tavg(5)+tavg(6)
+      t_tot_avg=tavg(10)
+      c_tot_avg=tavg(7)+tavg(8)+tavg(9)
 c
       if (iamp0) then
 c
@@ -6389,23 +6397,26 @@ c
         end if
 c
         do irank=0,nproc-1
-          c_tot=tbuf(4,irank)+tbuf(5,irank)+tbuf(6,irank)
+          c_tot=tbuf(7,irank)+tbuf(8,irank)+tbuf(9,irank)
           write (1,*)
           write (1,100)
           write (1,*)
           write (1,*) 'Processor id = ',irank
           write (1,*)
-          write (1,200) 'Comm. time in SEAM    = ',tbuf(4,irank)
-          write (1,200) 'Comm. time in CGDOT   = ',tbuf(5,irank)
-          write (1,200) 'Comm. time in SUMPHI  = ',tbuf(6,irank)
+          write (1,200) 'Comm. time in SEAM    = ',tbuf(7,irank)
+          write (1,200) 'Comm. time in CGDOT   = ',tbuf(8,irank)
+          write (1,200) 'Comm. time in SUMPHI  = ',tbuf(9,irank)
           write (1,*)   '------------------------------------'
           write (1,200) 'Total comm. time      = ',c_tot
           write (1,*)
           write (1,200) 'Time used in start-up = ',tbuf(2,irank)
           write (1,200) 'Time used in i/o      = ',tbuf(3,irank)
           write (1,200) 'Time used in POTFLD   = ',tbuf(1,irank)
+          write (1,200) 'Time used in AX       = ',tbuf(4,irank)
+          write (1,200) 'Time used in PCLOAD   = ',tbuf(5,irank)
+          write (1,200) 'Time used in PC       = ',tbuf(6,irank)
           write (1,*)   '------------------------------------'
-          write (1,200) 'Total time used       = ',tbuf(7,irank)
+          write (1,200) 'Total time used       = ',tbuf(10,irank)
   100     format (80('-'))
   200     format (1x,a,f12.6)
         enddo
@@ -6418,20 +6429,26 @@ c
         write (1,*)
         write (1,300) 'Avg         Min         Max      S. Dev'
         write (1,300) '---         ---         ---      ------'
-        write (1,400) 'Comm. time in SEAM    = ',
-     &                tavg(4),tmin(4),tmax(4),tsdev(4)
-        write (1,400) 'Comm. time in CGDOT   = ',
-     &                tavg(5),tmin(5),tmax(5),tsdev(5)
-        write (1,400) 'Comm. time in SUMPHI  = ',
-     &                tavg(6),tmin(6),tmax(6),tsdev(6)
-        write (1,400) 'Time used in start-up = ',
-     &                tavg(2),tmin(2),tmax(2),tsdev(2)
-        write (1,400) 'Time used in i/o      = ',
-     &                tavg(3),tmin(3),tmax(3),tsdev(3)
-        write (1,400) 'Time used in POTFLD   = ',
-     &                tavg(1),tmin(1),tmax(1),tsdev(1)
-        write (1,400) 'Total time            = ',
+        write (1,400) 'Avg comm. time in SEAM    = ',
      &                tavg(7),tmin(7),tmax(7),tsdev(7)
+        write (1,400) 'Avg comm. time in CGDOT   = ',
+     &                tavg(8),tmin(8),tmax(8),tsdev(8)
+        write (1,400) 'Avg comm. time in SUMPHI  = ',
+     &                tavg(9),tmin(9),tmax(9),tsdev(9)
+        write (1,400) 'Avg time used in start-up = ',
+     &                tavg(2),tmin(2),tmax(2),tsdev(2)
+        write (1,400) 'Avg time used in i/o      = ',
+     &                tavg(3),tmin(3),tmax(3),tsdev(3)
+        write (1,400) 'Avg time used in POTFLD   = ',
+     &                tavg(1),tmin(1),tmax(1),tsdev(1)
+        write (1,400) 'Avg time used in AX       = ',
+     &                tavg(4),tmin(4),tmax(4),tsdev(4)
+        write (1,400) 'Avg time used in PCLOAD   = ',
+     &                tavg(5),tmin(5),tmax(5),tsdev(5)
+        write (1,400) 'Avg time used in PC       = ',
+     &                tavg(6),tmin(6),tmax(6),tsdev(6)
+        write (1,400) 'Avg total time            = ',
+     &                tavg(10),tmin(10),tmax(10),tsdev(10)
   300   format (1x,33x,a)
   400   format (1x,a,4f12.3)
 c
@@ -6446,8 +6463,7 @@ c
 c
       end if
 c
-      return
-      end
+      end subroutine
 c#######################################################################
       subroutine readbr (fname,br0_g,ierr)
 c
@@ -7015,5 +7031,12 @@ c         was not being used ever, so no great loss.
 c         This change was done to allow setting the gpu device
 c         number before any allocations so that it works correctly
 c         when using NVIDIA unified managed memory.
+c
+c ### Version 3.3.0, 02/14/2022, modified by RC:
+c
+c       - Added new timers for AX, PC, PCLOAD, and modified some timers
+c         to be more useful.
+c       - Updated ILU0 PC2 preconditioner to use single precision.
+c         This speeds up the solve both on CPUs and GPUs.
 c
 c#######################################################################
