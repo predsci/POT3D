@@ -1,12 +1,12 @@
 c#######################################################################
 c  _____   ____ _______ ____  _____
-c |  __ \ / __ \__   __|___ \|  __ \ 
+c |  __ \ / __ \__   __|___ \|  __ \
 c | |__) | |  | | | |    __) | |  | |
 c |  ___/| |  | | | |   |__ <| |  | |
 c | |    | |__| | | |   ___) | |__| |
 c |_|     \____/  |_|  |____/|_____/
 c
-c ****** POT3D: Find the 3D potential magnetic field outside a sphere.
+c ****** POT3D: 3D potential magnetic field outside a sphere.
 c
 c ****** This program can find the classical potential field, the
 c ****** fully open field, the source-surface field, and the
@@ -52,8 +52,8 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='r3.3.0'
-      character(*), parameter :: update='02/14/2022'
+      character(*), parameter :: vers  ='r4.0.0'
+      character(*), parameter :: update='03/02/2022'
 c
       end module
 c#######################################################################
@@ -594,6 +594,37 @@ c#######################################################################
       end interface
       end module
 c#######################################################################
+      module cusparse_interface
+c
+      use, intrinsic :: iso_c_binding
+c
+#ifdef CUSPARSE
+      interface
+        subroutine load_lusol_cusparse(CSR_A,CSR_AI,CSR_AJ,N,M)
+     &    BIND(C, name="load_lusol_cusparse")
+          use, intrinsic :: iso_c_binding
+          implicit none
+          integer(C_INT), value :: N,M
+          type(C_PTR), value :: CSR_A,CSR_AI,CSR_AJ
+        end subroutine load_lusol_cusparse
+c
+        subroutine lusol_cusparse(x)
+     &    BIND(C, name="lusol_cusparse")
+          use, intrinsic :: iso_c_binding
+          implicit none
+          type(C_PTR), value :: x
+        end subroutine lusol_cusparse
+c
+        subroutine unload_lusol_cusparse()
+     &    BIND(C, name="unload_lusol_cusparse")
+        end subroutine unload_lusol_cusparse
+      end interface
+#endif
+c
+      integer(c_int) :: cN,cM
+c
+      end module
+c#######################################################################
       module matrix_storage_pot3d_solve
 c
 c-----------------------------------------------------------------------
@@ -1121,7 +1152,7 @@ c ****** Set the GPU device number based on local rank.
 c ****** NOTE! This assumes than #GPUs per node = #MPI ranks per node.
 c
 !$acc set device_num(iprocsh)
-c      
+c
       end subroutine
 c#######################################################################
       subroutine check_input
@@ -3836,8 +3867,7 @@ c
 c ****** Original rhs is zero so just use negative of boundary
 c        trick contributions:
 c
-!$acc parallel loop present(rhs_cg)
-      do i=1,N
+      do concurrent (i=1:N)
         rhs_cg(i)=-rhs_cg(i)
       enddo
 c
@@ -3998,14 +4028,9 @@ c-----------------------------------------------------------------------
 c
 c ****** Set phi.
 c
-!$acc parallel loop default(present) collapse(3)
-      do k=1,np
-        do j=1,nt
-          do i=1,nr
-            phi(i,j,k)=(-one/rh(i)**2)*(cth(j)*cos(dipole_angle)+
-     &                                 sth(j)*cph(k)*sin(dipole_angle))
-          enddo
-        enddo
+      do concurrent (k=1:np, j=1:nt, i=1:nr)
+        phi(i,j,k)=(-one/rh(i)**2)*(cth(j)*cos(dipole_angle)+
+     &                             sth(j)*cph(k)*sin(dipole_angle))
       enddo
 c
       call set_boundary_points (phi,one)
@@ -4015,37 +4040,22 @@ c
 c
 c ****** Set Br.
 c
-!$acc parallel loop default(present) collapse(3)
-      do k=1,np
-        do j=1,nt
-          do i=1,nrm1
-            br(i,j,k)=(two/r(i)**3)*(cth(j)*cos(dipole_angle) +
-     &                               sth(j)*cph(k)*sin(dipole_angle))
-          enddo
-        enddo
+      do concurrent (k=1:np, j=1:nt, i=1:nrm1)
+        br(i,j,k)=(two/r(i)**3)*(cth(j)*cos(dipole_angle) +
+     &                           sth(j)*cph(k)*sin(dipole_angle))
       enddo
 c
 c ****** Set Bt.
 c
-!$acc parallel loop default(present) collapse(3)
-      do k=1,np
-        do j=1,ntm1
-          do i=1,nr
-            bt(i,j,k)=(one/rh(i)**3)*(st(j)*cos(dipole_angle) -
-     &                                ct(j)*cph(k)*sin(dipole_angle))
-          enddo
-        enddo
+      do concurrent (k=1:np, j=1:ntm1, i=1:nr)
+        bt(i,j,k)=(one/rh(i)**3)*(st(j)*cos(dipole_angle) -
+     &                            ct(j)*cph(k)*sin(dipole_angle))
       enddo
 c
 c ****** Set Bp.
 c
-!$acc parallel loop default(present) collapse(3)
-      do k=1,npm1
-        do j=1,nt
-          do i=1,nr
-            bp(i,j,k)=(one/rh(i)**3)*(sph(k)*sin(dipole_angle))
-          enddo
-        enddo
+      do concurrent (k=1:npm1, j=1:nt, i=1:nr)
+        bp(i,j,k)=(one/rh(i)**3)*(sph(k)*sin(dipole_angle))
       enddo
 c
 c ****** Due to half mesh trig issues on periodic domain, we need
@@ -4206,8 +4216,7 @@ c
 c
 c ****** Get the norm of the RHS.
 c
-!$acc parallel loop default(present)
-      do i=1,N
+      do concurrent (i=1:N)
         p(i)=r(i)
       enddo
 c
@@ -4217,8 +4226,7 @@ c
 c ****** If the RHS is zero, return with a zero solution.
 c
       if (bdotb.eq.0.) then
-!$acc parallel loop present(x)
-        do i=1,N
+        do concurrent (i=1:N)
           x(i)=0.
         enddo
         epsn=0.
@@ -4232,8 +4240,7 @@ c-----------------------------------------------------------------------
 c
       call ax (x,ap,N)
 c
-!$acc parallel loop default(present)
-      do i=1,N
+      do concurrent (i=1:N)
         r(i)=r(i)-ap(i)
         p(i)=r(i)
       enddo
@@ -4258,8 +4265,7 @@ c
         pdotap=cgdot(p,ap,N)
         alphai=rdotr/pdotap
 c
-!$acc parallel loop default(present)
-        do i=1,N
+        do concurrent (i=1:N)
           x(i)=x(i)+alphai*p(i)
           r(i)=r(i)-alphai*ap(i)
           ap(i)=r(i)
@@ -4276,8 +4282,7 @@ c
 c
         betai=rdotr/rdotr_old
 c
-!$acc parallel loop default(present)
-        do i=1,N
+        do concurrent (i=1:N)
           p(i)=betai*p(i)+ap(i)
         enddo
 c
@@ -4455,6 +4460,7 @@ c-----------------------------------------------------------------------
 c
       use matrix_storage_pot3d_solve
       use cgcom
+      use cusparse_interface
 c
 c-----------------------------------------------------------------------
 c
@@ -4467,6 +4473,10 @@ c
 !$acc exit data delete(a,a_i)
 c
       if (ifprec.eq.2) then
+#ifdef CUSPARSE
+        call unload_lusol_cusparse
+!$acc exit data delete(a_csr,a_csr_ja,a_csr_ia)
+#endif
         deallocate (a_csr)
         deallocate (lu_csr)
         deallocate (lu_csr_ja)
@@ -4546,6 +4556,8 @@ c
       use cgcom
       use local_dims_r
       use local_dims_tp
+      use, intrinsic :: iso_c_binding
+      use cusparse_interface
       use timing
 c
 c-----------------------------------------------------------------------
@@ -4586,6 +4598,16 @@ c ****** Convert A matrix into CSR format:
 c
         call diacsr (N,M,a,a_offsets,a_csr,a_csr_ja,
      &                     a_csr_ia,a_csr_dptr)
+#ifdef CUSPARSE
+      cN=N
+      cM=M
+!$acc enter data copyin(a_csr,a_csr_ja,a_csr_ia)
+!$acc host_data use_device(a_csr,a_csr_ja,a_csr_ia)
+      call load_lusol_cusparse (C_LOC(a_csr(1)),
+     &                          C_LOC(a_csr_ia(1)),
+     &                          C_LOC(a_csr_ja(1)),cN,cM)
+!$acc end host_data
+#else
 c
 c ****** Overwrite CSR A with preconditioner L and U matrices:
 c
@@ -4609,6 +4631,7 @@ c
           a_csr_d(i)=one/a_csr(a_csr_dptr(i))
         enddo
 c
+#endif
       endif
 c
       call timer_off (t_pc_load)
@@ -5095,6 +5118,8 @@ c
       use cgcom
       use solve_params
       use matrix_storage_pot3d_solve
+      use, intrinsic :: iso_c_binding
+      use cusparse_interface
       use timing
 c
 c-----------------------------------------------------------------------
@@ -5117,15 +5142,21 @@ c
 c
 c ****** Point-Jacobi (diagonal scaling):
 c
-!$acc parallel loop default(present)
-        do i=1,N
+        do concurrent (i=1:N)
           x(i)=a_i(i)*x(i)
         enddo
 c
       elseif (ifprec.eq.2) then
-!$acc update self(x)
 c
 c ****** ILU0 Partial-Block-Jacobi:
+c
+#ifdef CUSPARSE
+!$acc host_data use_device(x)
+        call lusol_cusparse(C_LOC(x(1)))
+!$acc end host_data
+c
+#else
+!$acc update self(x)
 c
 c ****** Convert input array to single precision.
 c
@@ -5142,6 +5173,7 @@ c
         enddo
 c
 !$acc update device(x)
+#endif
       endif
 c
       call timer_off (t_pc)
@@ -5253,13 +5285,8 @@ c
 c
 c-----------------------------------------------------------------------
 c
-!$acc parallel loop collapse(3) default(present)
-      do k=2,npm1
-        do j=2,ntm1
-          do i=2,nrm1
-            s(i,j,k)=x(i,j,k)
-          enddo
-        enddo
+      do concurrent (k=2:npm1, j=2:ntm1, i=2:nrm1)
+        s(i,j,k)=x(i,j,k)
       enddo
 c
       return
@@ -5293,19 +5320,14 @@ c
 c
 c-----------------------------------------------------------------------
 c
-!$acc parallel loop collapse(3) default(present)
-      do k=2,npm1
-        do j=2,ntm1
-          do i=2,nrm1
-            y(i,j,k)=a(i,j,k,1)*x(i  ,j  ,k-1)
-     &              +a(i,j,k,2)*x(i  ,j-1,k  )
-     &              +a(i,j,k,3)*x(i-1,j  ,k  )
-     &              +a(i,j,k,4)*x(i  ,j  ,k  )
-     &              +a(i,j,k,5)*x(i+1,j  ,k  )
-     &              +a(i,j,k,6)*x(i  ,j+1,k  )
-     &              +a(i,j,k,7)*x(i  ,j  ,k+1)
-          enddo
-        enddo
+      do concurrent (k=2:npm1, j=2:ntm1, i=2:nrm1)
+        y(i,j,k)=a(i,j,k,1)*x(i  ,j  ,k-1)
+     &          +a(i,j,k,2)*x(i  ,j-1,k  )
+     &          +a(i,j,k,3)*x(i-1,j  ,k  )
+     &          +a(i,j,k,4)*x(i  ,j  ,k  )
+     &          +a(i,j,k,5)*x(i+1,j  ,k  )
+     &          +a(i,j,k,6)*x(i  ,j+1,k  )
+     &          +a(i,j,k,7)*x(i  ,j  ,k+1)
       enddo
 c
       return
@@ -5351,32 +5373,22 @@ c
 c ****** Set X at the radial boundaries.
 c
       if (rb0) then
-!$acc parallel loop collapse(2) default(present) async(1)
-        do k=2,npm1
-          do j=2,ntm1
-            x( 1,j,k)=x(2,j,k)-vmask*br0(j,k)*dr1
-          enddo
+        do concurrent (k=2:npm1, j=2:ntm1)
+          x( 1,j,k)=x(2,j,k)-vmask*br0(j,k)*dr1
         enddo
       end if
 c
       if (rb1) then
         if (validation_run) then
-!$acc parallel loop collapse(2) default(present) async(2)
-          do k=2,npm1
-            do j=2,ntm1
-              x(nr,j,k)=x(nrm1,j,k)+vmask*br1(j,k)*drn
-            enddo
+          do concurrent (k=2:npm1, j=2:ntm1)
+            x(nr,j,k)=x(nrm1,j,k)+vmask*br1(j,k)*drn
           enddo
         else
-!$acc parallel loop collapse(2) default(present) async(2)
-          do k=2,npm1
-            do j=2,ntm1
-              x(nr,j,k)=pm_r1*x(nrm1,j,k)
-            enddo
+          do concurrent (k=2:npm1, j=2:ntm1)
+            x(nr,j,k)=pm_r1*x(nrm1,j,k)
           enddo
         end if
       end if
-!$acc wait(1,2)
 c
 c ****** If this processor does not contain any points at the
 c ****** pole, return.
@@ -5386,8 +5398,7 @@ c
 c ****** Get the m=0 component of X at the poles.
 c
       if (tb0) then
-!$acc parallel loop present(sum0) async(1)
-        do i=1,nr
+        do concurrent (i=1:nr)
           sum0(i)=0
         enddo
 !$acc parallel loop collapse(2) default(present) async(1)
@@ -5400,8 +5411,7 @@ c
       end if
 c
       if (tb1) then
-!$acc parallel loop present(sum1) async(2)
-        do i=1,nr
+        do concurrent (i=1:nr)
           sum1(i)=0
         enddo
 !$acc parallel loop collapse(2) default(present) async(2)
@@ -5421,23 +5431,16 @@ c
 c ****** Set X to have only an m=0 component at the poles.
 c
       if (tb0) then
-!$acc parallel loop collapse(2) default(present) async(1)
-        do k=2,npm1
-          do i=1,nr
-            x(i,1,k)=two*sum0(i)-x(i,2,k)
-          enddo
+        do concurrent (k=2:npm1, i=1:nr)
+          x(i,1,k)=two*sum0(i)-x(i,2,k)
         enddo
       end if
 c
       if (tb1) then
-!$acc parallel loop collapse(2) default(present) async(2)
-        do k=2,npm1
-          do i=1,nr
-            x(i,nt,k)=two*sum1(i)-x(i,ntm1,k)
-          enddo
+        do concurrent (k=2:npm1, i=1:nr)
+          x(i,nt,k)=two*sum1(i)-x(i,ntm1,k)
         enddo
       end if
-!$acc wait(1,2)
 c
       return
       end subroutine
@@ -5687,12 +5690,9 @@ c
 c
         lbuf=n2*n3
 c
-!$acc parallel loop collapse(2) present(a,sbuf11,sbuf12)
-        do j=1,n3
-          do i=1,n2
-            sbuf11(i,j)=a(n1-1,i,j)
-            sbuf12(i,j)=a(   2,i,j)
-          enddo
+        do concurrent (j=1:n3, i=1:n2)
+          sbuf11(i,j)=a(n1-1,i,j)
+          sbuf12(i,j)=a(   2,i,j)
         enddo
 c
 !$acc host_data use_device(sbuf11,sbuf12,rbuf11,rbuf12)
@@ -5712,23 +5712,16 @@ c
 !$acc end host_data
 c
         if (iproc_rm.ne.MPI_PROC_NULL) then
-!$acc parallel loop collapse(2) present(a,rbuf11) async(1)
-          do j=1,n3
-            do i=1,n2
-              a( 1,i,j)=rbuf11(i,j)
-            enddo
+          do concurrent (j=1:n3, i=1:n2)
+            a( 1,i,j)=rbuf11(i,j)
           enddo
         end if
 c
         if (iproc_rp.ne.MPI_PROC_NULL) then
-!$acc parallel loop collapse(2) present(a,rbuf12) async(2)
-          do j=1,n3
-            do i=1,n2
-              a(n1,i,j)=rbuf12(i,j)
-            enddo
+          do concurrent (j=1:n3, i=1:n2)
+            a(n1,i,j)=rbuf12(i,j)
           enddo
         end if
-!$acc wait(1,2)
 c
 !$acc exit data delete(sbuf11,sbuf12,rbuf11,rbuf12)
       end if
@@ -5741,12 +5734,9 @@ c
 c
         lbuf=n1*n3
 c
-!$acc parallel loop collapse(2) present(a,sbuf21,sbuf22)
-        do j=1,n3
-          do i=1,n1
-            sbuf21(i,j)=a(i,n2-1,j)
-            sbuf22(i,j)=a(i,   2,j)
-          enddo
+        do concurrent (j=1:n3, i=1:n1)
+          sbuf21(i,j)=a(i,n2-1,j)
+          sbuf22(i,j)=a(i,   2,j)
         enddo
 c
 !$acc host_data use_device(sbuf21,sbuf22,rbuf21,rbuf22)
@@ -5766,23 +5756,16 @@ c
 !$acc end host_data
 c
         if (iproc_tm.ne.MPI_PROC_NULL) then
-!$acc parallel loop collapse(2) present(a,rbuf21) async(1)
-          do j=1,n3
-            do i=1,n1
-              a(i, 1,j)=rbuf21(i,j)
-            enddo
+          do concurrent (j=1:n3, i=1:n1)
+            a(i, 1,j)=rbuf21(i,j)
           enddo
         end if
 c
         if (iproc_tp.ne.MPI_PROC_NULL) then
-!$acc parallel loop collapse(2) present(a,rbuf22) async(2)
-          do j=1,n3
-            do i=1,n1
-              a(i,n2,j)=rbuf22(i,j)
-            enddo
+          do concurrent (j=1:n3, i=1:n1)
+            a(i,n2,j)=rbuf22(i,j)
           enddo
         end if
-!$acc wait(1,2)
 c
 !$acc exit data delete(sbuf21,sbuf22,rbuf21,rbuf22)
       end if
@@ -5995,37 +5978,21 @@ c
 c
 c ****** Get Br.
 c
-!$acc parallel loop default(present) collapse(3) async(1)
-      do k=1,np
-        do j=1,nt
-          do i=1,nrm1
-            br(i,j,k)=(phi(i+1,j,k)-phi(i,j,k))/dr(i)
-          enddo
-        enddo
+      do concurrent (k=1:np, j=1:nt, i=1:nrm1)
+        br(i,j,k)=(phi(i+1,j,k)-phi(i,j,k))/dr(i)
       enddo
 c
 c ****** Get Bt.
 c
-!$acc parallel loop default(present) collapse(3) async(2)
-      do k=1,np
-        do j=1,ntm1
-          do i=1,nr
-            bt(i,j,k)=(phi(i,j+1,k)-phi(i,j,k))/(rh(i)*dt(j))
-          enddo
-        enddo
+      do concurrent (k=1:np, j=1:ntm1, i=1:nr)
+        bt(i,j,k)=(phi(i,j+1,k)-phi(i,j,k))/(rh(i)*dt(j))
       enddo
 c
 c ****** Get Bp.
 c
-!$acc parallel loop default(present) collapse(3) async(3)
-      do k=1,npm1
-        do j=1,nt
-          do i=1,nr
-            bp(i,j,k)=(phi(i,j,k+1)-phi(i,j,k))/(rh(i)*sth(j)*dp(k))
-          enddo
-        enddo
+      do concurrent (k=1:npm1, j=1:nt, i=1:nr)
+        bp(i,j,k)=(phi(i,j,k+1)-phi(i,j,k))/(rh(i)*sth(j)*dp(k))
       enddo
-!$acc wait
 c
       end subroutine
 c#######################################################################
@@ -7038,5 +7005,13 @@ c       - Added new timers for AX, PC, PCLOAD, and modified some timers
 c         to be more useful.
 c       - Updated ILU0 PC2 preconditioner to use single precision.
 c         This speeds up the solve both on CPUs and GPUs.
+c
+c ### Version 4.0.0, 03/02/2022, modified by RC/MS:
+c
+c       - Added cuSparse library calls for ifprec=2 on NVIDIA GPUs.
+c       - Added #ifdef
+c         preprocessor directives which will either compile a cusparse
+c         GPU version of the code or a CPU compatible version
+c         without cusparse calls and no c code references
 c
 c#######################################################################

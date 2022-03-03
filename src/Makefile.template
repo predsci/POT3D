@@ -1,23 +1,43 @@
 FC = mpif90
 
-FFLAGS = <FFLAGS> -I<HDF5_INCLUDE_DIR>
+POT3D_CUSPARSE=<POT3D_CUSPARSE>
 
-OBJS = number_types.o \
+ifeq ($(POT3D_CUSPARSE),1)
+  IF_DEF = -DCUSPARSE
+  CC = nvc
+  CCFLAGS = -O3 -acc=gpu
+  FPARADD = -cudalib=cusparse
+else
+  IF_DEF = 
+  FPARADD =
+endif
+
+FFLAGS = <FFLAGS> $(FPARADD) -I<HDF5_INCLUDE_DIR>
+
+OBJS0 = number_types.o \
  zm_parse_modules.o \
  zm_parse.o \
  zm_sds_modules.o \
- zm_sds.o \
- pot3d.o
+ zm_sds.o
+
+ifeq ($(POT3D_CUSPARSE),1)
+  OBJS = $(OBJS0) lusol_cusparse.o pot3d_cpp.o
+else
+  OBJS = $(OBJS0) pot3d_cpp.o
+endif
 
 LDFLAGS = -L<HDF5_LIB_DIR> <HDF5_LIB_FLAGS>
 
-all:	$(OBJS)
+all: $(OBJS)
 	$(FC) $(FFLAGS) $(OBJS) $(LDFLAGS) -o pot3d
-	rm *.mod *.o 2>/dev/null
+	rm -f *.mod *.o 2>/dev/null
 
 clean:
 	rm pot3d 2>/dev/null
-	rm -f *.mod *.o 2>/dev/null
+	rm -f *.mod *.o pot3d.f 2>/dev/null
+
+pot3d_cpp.f: pot3d.F
+	$(FC) -E -cpp $(IF_DEF) > pot3d_cpp.f $<
 
 number_types.o: number_types.f
 	$(FC) -c $(FFLAGS) $<
@@ -34,6 +54,9 @@ zm_sds_modules.o: zm_sds_modules.f
 zm_sds.o: zm_sds.f zm_sds_modules.f number_types.f
 	$(FC) -c $(FFLAGS) $<
 
-pot3d.o: pot3d.f
+lusol_cusparse.o: lusol_cusparse.c 
+	$(CC) -c $(CCFLAGS) ${FPARADD} $<
+
+pot3d_cpp.o: pot3d_cpp.f
 	$(FC) -c $(FFLAGS) $<
 
