@@ -93,7 +93,7 @@
 !
   ifprec=2                    ! Preconditioner method:
                               !   1    Diagonal (use for GPU runs)
-                              !   2    ILUB0    (use for CPU runs)
+                              !   2    ILUB0    (use for CPU runs or GPU runs when built with cuSparse)
 !
   epscg=1.e-9                 ! Solver convergence tolerance, |residual|/|right-hand-side|.
 !
