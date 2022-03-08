@@ -85,14 +85,19 @@ c        05/03/2019, RC, Version 2.03:
 c
 c         - Bug fix for HDF5 reads.
 c
+c        05/03/2019, RC, Version 2.0.4:
+c
+c         - Bug fix for HDF5 reads (can read mixed prec scales now).
+c         - Updated rdh5 and wrh5 to use proper casting syntax.
+c 
 c-----------------------------------------------------------------------
 c
 c#######################################################################
       module sdslib_ident
 c
       character(*), parameter :: cname='SDSLIB'
-      character(*), parameter :: cvers='2.03'
-      character(*), parameter :: cdate='05/03/2019'
+      character(*), parameter :: cvers='2.0.4'
+      character(*), parameter :: cdate='03/08/2022'
 c
       end module
 c#######################################################################
@@ -940,7 +945,7 @@ c
 c
 c-----------------------------------------------------------------------
 c
-      integer :: i,obj_type,n_members
+      integer :: i,j,k,obj_type,n_members
 c
       integer(HID_T) :: file_id       ! File identifier
       integer(HID_T) :: dset_id       ! Dataset identifier
@@ -1022,7 +1027,9 @@ c
       call h5Sget_simple_extent_dims_f (dspace_id,s_dims,maxpts,ierr)
       deallocate(maxpts)
 c
-      s%dims(1:s%ndim)=s_dims(1:s%ndim)
+      do j=1,s%ndim
+        s%dims(j) = INT(s_dims(j))
+      end do
 c
 c ****** Get the floating-point precision of the data and set flag.
 c
@@ -1045,7 +1052,13 @@ c
       if (s%hdf32) then
         allocate (f4(s%dims(1),s%dims(2),s%dims(3)))
         call h5Dread_f (dset_id,datatype_id,f4,s_dims,ierr)
-        s%f(:,:,:)=f4(:,:,:)
+        do k=1,s%dims(3)
+          do j=1,s%dims(2)
+            do i=1,s%dims(1)
+              s%f(i,j,k) = REAL(f4(i,j,k),r_typ)
+            enddo
+          enddo
+        enddo
         deallocate (f4)
       else
         allocate (f8(s%dims(1),s%dims(2),s%dims(3)))
@@ -1125,12 +1138,14 @@ c
 c
 c ****** Read in the scale data.
 c
-          if (s%hdf32) then
+          if (prec.eq.32) then
             allocate (f4dim(s_dims_i(1)))
             call h5Dread_f (dim_id,datatype_id,f4dim,s_dims_i,ierr)
-            s%scales(i)%f(:)=f4dim(:)
+            do j=1,s%dims(i)
+              s%scales(i)%f(j) = REAL(f4dim(j),r_typ)
+            end do
             deallocate (f4dim)
-          else
+          elseif (prec.eq.64) then
             allocate (f8dim(s_dims_i(1)))
             call h5Dread_f (dim_id,datatype_id,f8dim,s_dims_i,ierr)
             s%scales(i)%f(:)=f8dim(:)
@@ -1328,7 +1343,7 @@ c
 c-----------------------------------------------------------------------
 c
       character(8) ::   dimname
-      integer :: i
+      integer :: i,j,k
       integer(HID_T) :: file_id       ! File identifier
       integer(HID_T) :: dset_id       ! Dataset identifier
       integer(HID_T) :: dspace_id,dspacedim_id   ! Dataspace identifiers
@@ -1353,7 +1368,7 @@ c ****** f(n), set the dims here.
 c
       do i=1,3
          if (i.le.s%ndim) then
-           s_dims(i)=s%dims(i)
+           s_dims(i)=INT(s%dims(i),HSIZE_T)
          else
            s_dims(i)=1
          endif
@@ -1375,7 +1390,13 @@ c ****** Create and write the dataset (convert s%f to proper type).
 c
       if (s%hdf32) then
         allocate (f4(s_dims(1),s_dims(2),s_dims(3)))
-        f4(:,:,:)=s%f(:,:,:)
+        do k=1,s%dims(3)
+          do j=1,s%dims(2)
+            do i=1,s%dims(1)
+              f4(i,j,k) = REAL(s%f(i,j,k),KIND_REAL_4)
+            enddo
+          enddo
+        enddo
         call h5Dcreate_f (file_id,'Data',H5T_NATIVE_REAL,
      &                    dspace_id,dset_id,ierr)
         call h5Dwrite_f (dset_id,H5T_NATIVE_REAL,f4,s_dims,ierr)
@@ -1413,7 +1434,9 @@ c
           call h5Screate_simple_f(1,s_dims_i,dspacedim_id,ierr)
           if (s%hdf32) then
             allocate (f4dim(s_dims_i(1)))
-            f4dim(:)=s%scales(i)%f(:)
+            do j=1,s%dims(i)
+              f4dim(j) = REAL(s%scales(i)%f(j),KIND_REAL_4)
+            end do
             call h5Dcreate_f (file_id,dimname,H5T_NATIVE_REAL,
      &                        dspacedim_id,dim_id,ierr)
             call h5Dwrite_f (dim_id,H5T_NATIVE_REAL,
