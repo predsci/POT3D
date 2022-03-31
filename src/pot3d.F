@@ -52,8 +52,8 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='r4.0.0'
-      character(*), parameter :: update='03/02/2022'
+      character(*), parameter :: vers  ='r4.0.1'
+      character(*), parameter :: update='03/31/2022'
 c
       end module
 c#######################################################################
@@ -642,12 +642,12 @@ c
       integer, dimension(7) :: a_offsets
 
       integer :: N,M
-      real(r_typ_pc), dimension(:), allocatable :: a_csr
+      real(r_typ_pc), dimension(:), allocatable, target :: a_csr
       real(r_typ_pc), dimension(:), allocatable :: lu_csr
       real(r_typ_pc), dimension(:), allocatable :: a_csr_d
       integer, dimension(:), allocatable :: lu_csr_ja
-      integer, dimension(:), allocatable :: a_csr_ia
-      integer, dimension(:), allocatable :: a_csr_ja
+      integer, dimension(:), allocatable, target :: a_csr_ia
+      integer, dimension(:), allocatable, target :: a_csr_ja
       integer, dimension(:), allocatable :: a_N1
       integer, dimension(:), allocatable :: a_N2
       integer, dimension(:), allocatable :: a_csr_dptr
@@ -4199,7 +4199,7 @@ c-----------------------------------------------------------------------
 c
 c ****** Scratch space for the CG iteration vectors.
 c
-      real(r_typ), dimension(N) :: p,ap
+      real(r_typ), dimension(N), target :: p,ap
 c
 c-----------------------------------------------------------------------
 c
@@ -7013,5 +7013,11 @@ c       - Added #ifdef
 c         preprocessor directives which will either compile a cusparse
 c         GPU version of the code or a CPU compatible version
 c         without cusparse calls and no c code references
+c
+c ### Version 4.0.1, 03/31/2022, modified by RC:
+c
+c       - Added 'target' attribute to arrays used with C_LOC.
+c         This fixes a compiler error with GFORTRAN when
+c         using cuSparse.
 c
 c#######################################################################

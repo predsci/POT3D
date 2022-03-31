@@ -5,14 +5,14 @@ POT3D_CUSPARSE=<POT3D_CUSPARSE>
 ifeq ($(POT3D_CUSPARSE),1)
   IF_DEF = -DCUSPARSE
   CC = nvc
-  CCFLAGS = -O3 -acc=gpu
-  FPARADD = -cudalib=cusparse
+  CCFLAGS = <CCFLAGS>
+  PARADD = -cudalib=cusparse
 else
   IF_DEF = 
-  FPARADD =
+  PARADD =
 endif
 
-FFLAGS = <FFLAGS> $(FPARADD) -I<HDF5_INCLUDE_DIR>
+FFLAGS = <FFLAGS> $(PARADD) -I<HDF5_INCLUDE_DIR>
 
 OBJS0 = number_types.o \
  zm_parse_modules.o \
@@ -55,7 +55,7 @@ zm_sds.o: zm_sds.f zm_sds_modules.f number_types.f
 	$(FC) -c $(FFLAGS) $<
 
 lusol_cusparse.o: lusol_cusparse.c 
-	$(CC) -c $(CCFLAGS) ${FPARADD} $<
+	$(CC) -c $(CCFLAGS) ${PARADD} $<
 
 pot3d_cpp.o: pot3d_cpp.f
 	$(FC) -c $(FFLAGS) $<

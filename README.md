@@ -6,7 +6,7 @@ www.predsci.com
   
 ## OVERVIEW ##
   
-`POT3D` is a Fortran code that computes potential field solutions to approximate the solar coronal magnetic field using observed photospheric magnetic fields as a boundary condition.  It can be used to generate potential field source surface (PFSS), potential field current sheet (PFCS), and open field (OF) models. It has been (and continues to be) used for numerous studies of coronal structure and dynamics.  The code is highly parallelized using [MPI](https://www.mpi-forum.org) and is GPU-accelerated using MPI+[OpenACC](https://www.openacc.org/), along with an option to use the [NVIDIA cuSparse library](https://developer.nvidia.com/cusparse). The [HDF5](https://www.hdfgroup.org/solutions/hdf5) file format is used for input/output.
+`POT3D` is a Fortran code that computes potential field solutions to approximate the solar coronal magnetic field using observed photospheric magnetic fields as a boundary condition.  It can be used to generate potential field source surface (PFSS), potential field current sheet (PFCS), and open field (OF) models. It has been (and continues to be) used for numerous studies of coronal structure and dynamics.  The code is highly parallelized using [MPI](https://www.mpi-forum.org) and is GPU-accelerated using Fortran standard parallelism (do concurrent) and [OpenACC](https://www.openacc.org/), along with an option to use the [NVIDIA cuSparse library](https://developer.nvidia.com/cusparse). The [HDF5](https://www.hdfgroup.org/solutions/hdf5) file format is used for input/output.
   
 `POT3D` is the potential field solver for the WSA model in the CORHEL software suite publicly hosted at the [Community Coordinated Modeling Center (CCMC)](https://ccmc.gsfc.nasa.gov/models/modelinfo.php?model=CORHEL/MAS/WSA/ENLIL).  
 A version of `POT3D` that includes GPU-acceleration with both MPI+OpenACC and MPI+[OpenMP](https://www.openmp.org//) was released as part of the Standard Performance Evaluation Corporation's (SPEC) beta version of the [SPEChpc(TM) 2021 benchmark suites](https://www.spec.org/hpc2021).  
@@ -22,11 +22,11 @@ Details of the `POT3D` code can be found in the following publications:
   
 ## HOW TO BUILD POT3D ##
   
-Copy the file `build.sh` to `my_build.sh`.  
-Modify `my_build.sh` to set the `HDF5` library paths/flags and compiler flags compatible with your system environment.  
-Then, run `./my_build.sh`.
+Copy a build script from the `build_examples` folder that is closest to your setup to the base directory.  
+Modify teh script to set the `HDF5` library paths/flags and compiler flags compatible with your system environment.  
+Then, run the script to build POT3D (for example, `./my_build.sh`).
   
-See comments in `build.sh` for more details.
+See the multiple build example scripts in the `build_examples` folder for more details.
   
 ### Validate Installation ###
   
@@ -36,6 +36,8 @@ This will perform 2 runs of a small case using 1 and 2 MPI ranks respectively.
 The runs are performed in `testsuite/validation/run/` and the second run overwrites the first.
   
 Each result will be checked against a reference solution (in `/runs/validation/validation`) and a PASS/FAIL message will be displayed.
+
+Note that these validation runs use `ifprec=1` even if POT3D was build with cuSparse enabled, so to test a cuSparse build, one needs to modify the pot3d.dat file manually (see below).
   
 --------------------------------
   
