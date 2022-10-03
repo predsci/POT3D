@@ -1,0 +1,20 @@
+POT3D ISC2023 RUN VALIDATION
+
+System info:
+EXPANSE @ San Diego Super Computer Center
+CPU:                       AMD EPYC 7702 (2x)
+OS:                        Rocky Linux 8.5 
+Compiler:                  GCC 10.2.0
+Compile flags for POT3D:   -O3 -march=native -fallow-argument-mismatch
+MPI Library:               OpenMPI 4.0.4
+
+Run info:
+Number of nodes:                          4
+Number of MPI ranks per node:           128
+Total MPI ranks used:                   512
+Wall clock time:                    1842.55 seconds
+Average COMM time:                   455.51 seconds
+
+
+
+

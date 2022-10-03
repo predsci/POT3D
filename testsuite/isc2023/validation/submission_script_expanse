@@ -1,0 +1,38 @@
+#!/bin/bash
+#SBATCH --account=bos201
+#SBATCH --no-requeue
+#SBATCH --partition=compute
+#SBATCH --export=all
+#SBATCH --mem=128G
+#SBATCH --ntasks-per-node=128
+#SBATCH --nodes=4
+#SBATCH -t 04:00:00
+#SBATCH --job-name=pot3d_isc2023
+set -x
+
+. ~/load_cpu_env
+
+JID=${SLURM_JOB_NAME}
+
+RUN_DIR=${PWD}
+WORK_DIR=${WORK}/${JID}
+
+if [ -d $WORK_DIR ]
+then
+rm -fr $WORK_DIR
+fi
+
+mkdir $WORK_DIR
+rm -fr ${RUN_DIR}/run_directory 2>/dev/null
+
+mkdir ${RUN_DIR}/results 2>/dev/null
+
+cp ${RUN_DIR}/* ${WORK_DIR}/
+
+ln -s ${WORK_DIR} ${RUN_DIR}/run_directory
+
+cd $WORK_DIR
+
+srun --mpi=pmi2 --ntasks-per-socket=64 ./pot3d 1>${JID}.log 2>${JID}.err
+
+
