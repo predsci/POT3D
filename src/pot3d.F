@@ -52,8 +52,8 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='r4.0.1'
-      character(*), parameter :: update='03/31/2022'
+      character(*), parameter :: vers  ='r4.1.0'
+      character(*), parameter :: update='10/24/2022'
 c
       end module
 c#######################################################################
@@ -451,9 +451,8 @@ c ****** CG field solver parameters.
 c-----------------------------------------------------------------------
 c
       integer :: ifprec=1
-      integer :: ncgmax=5000
-      integer :: ncghist=0
-      integer :: ncgflush=25
+      integer :: ncgmax=1000000
+      integer :: ncghist=100
       real(r_typ) :: epscg=1.e-9
 c
 c-----------------------------------------------------------------------
@@ -783,11 +782,12 @@ c
         write (*,*)
         write (*,*) '### COMMENT from POT3D:'
         write (*,*) '### Starting PCG solve.'
+        call FLUSH(OUTPUT_UNIT)
         write (9,*)
         write (9,*) '### COMMENT from POT3D:'
         write (9,*) '### Starting PCG solve.'
+        call FLUSH(9)
       end if
-      call flush_output_file(outfile,9)
 c
       call timer_on
 c
@@ -813,42 +813,6 @@ c
       call write_timing
 c
       call endrun (.false.)
-c
-      end
-c#######################################################################
-      subroutine flush_output_file (filename,fsid)
-c
-c-----------------------------------------------------------------------
-c
-c ****** Flush output file by closing it and re-opening it in append.
-c ****** filename is a character(256) which contains the filename
-c ****** and fsid is the file's unit number.
-c
-c-----------------------------------------------------------------------
-c
-      use mpidefs
-      use vars
-c
-c-----------------------------------------------------------------------
-c
-      implicit none
-c
-c-----------------------------------------------------------------------
-c
-      integer :: fsid
-      character(256) :: filename
-c
-c-----------------------------------------------------------------------
-c
-      integer :: ierr
-c
-c-----------------------------------------------------------------------
-c
-      if (iamp0) then
-        close(fsid)
-        call ffopen (fsid,trim(filename),'a',ierr)
-      end if
-      call check_error_on_p0 (ierr)
 c
       end
 c#######################################################################
@@ -900,8 +864,7 @@ c
      &                     br_photo_original_file,
      &                     option,
      &                     do_not_balance_flux,hdf32,
-     &                     validation_run,dipole_angle,
-     &                     ncgflush
+     &                     validation_run,dipole_angle
 c
 c-----------------------------------------------------------------------
 c
@@ -4356,22 +4319,19 @@ c
       epsn=sign(one,epssq)*sqrt(abs(epssq))
 c
       if (ncghist.gt.0) then
-        if (iamp0.and.mod(ncg,50).eq.0) then
-          call flush_output_file(outfile,9)
-        end if
 c
         if (mod(ncg,ncghist).eq.0) then
           if (iamp0) then
             if (ncg.eq.0) then
               write (9,*)
-              write (9,*) '### Comment from ERNORM:'
               write (9,*) '### Convergence information:'
+              write (*,*)
             end if
+            write (*,100) ncg,epsn
+            FLUSH(OUTPUT_UNIT)
             write (9,100) ncg,epsn
-            if (mod(ncg,ncgflush).eq.0) then
-              call flush_output_file(outfile,9)
-            end if
-  100       format (1x,'N = ',i6,' EPSN = ',1pe13.6)
+            FLUSH(9)
+  100       format (1x,'Iteration: ',i8,'   Residual: ',1pe23.15)
           end if
         end if
       end if
@@ -4381,11 +4341,12 @@ c
       if (epsn.lt.epscg) then
         if (ncghist.gt.0) then
           if (iamp0) then
+            write (*,100) ncg,epsn
+            FLUSH(OUTPUT_UNIT)
             write (9,*)
-            write (9,*) '### Comment from ERNORM:'
             write (9,*) '### The CG solver has converged.'
             write (9,100) ncg,epsn
-            call flush_output_file(outfile,9)
+            FLUSH(9)
           end if
         end if
         ierr=0
@@ -4396,12 +4357,13 @@ c
           write (*,*) '### Exceeded maximum number of iterations.'
           write (*,*) 'NCGMAX = ',ncgmax
           write (*,*) 'EPSN = ',epsn
+          FLUSH(OUTPUT_UNIT)
           write (9,*)
           write (9,*) '### ERROR in ERNORM:'
           write (9,*) '### Exceeded maximum number of iterations.'
           write (9,*) 'NCGMAX = ',ncgmax
           write (9,*) 'EPSN = ',epsn
-          call flush_output_file(outfile,9)
+          FLUSH(9)
         end if
         ierr=1
       end if
@@ -6428,6 +6390,12 @@ c
 c
         close (1)
 c
+        write(*,*)
+        write(*,200) 'Total time:               ',tmax(10)
+        write(*,200) 'Max Comm/Imbalance time:  ',
+     &                tmax(7)+tmax(8)+tmax(9)
+        write(*,*)
+c
       end if
 c
       end subroutine
@@ -7019,5 +6987,14 @@ c
 c       - Added 'target' attribute to arrays used with C_LOC.
 c         This fixes a compiler error with GFORTRAN when
 c         using cuSparse.
+c
+c ### Version 4.1.0, 10/24/2022, modified by RC:
+c
+c       - Removed NCGFLUSH input parameter.  The output is
+c         flushed at every write now.
+c       - Changed behavior of solver residual reporting
+c         to also output to terminal.
+c       - Removed flush_output_file() routine in favor of Fortran 2003
+c         intrinsic FLUSH.
 c
 c#######################################################################

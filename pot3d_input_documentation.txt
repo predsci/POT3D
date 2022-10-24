@@ -101,9 +101,7 @@
                               !   0    Only writes out total iteration number.
                               !   >0   Writes out every NCGHIST iteration residual.
 !
-  ncgflush=25                 ! Flush output file every NGCFLUSH iterations.
-!
-  ncgmax=5000             ! Maximum solver iterations.
+  ncgmax=1000000              ! Maximum solver iterations.
                               ! If solver does not converge in ncgmax iterations,
                               ! the code will exit with an error.
 !
