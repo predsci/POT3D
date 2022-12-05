@@ -23,7 +23,7 @@ Details of the `POT3D` code can be found in the following publications:
 ## HOW TO BUILD POT3D ##
   
 Copy a build script from the `build_examples` folder that is closest to your setup to the base directory.  
-Modify teh script to set the `HDF5` library paths/flags and compiler flags compatible with your system environment.  
+Modify the script to set the `HDF5` library paths/flags and compiler flags compatible with your system environment.  
 Then, run the script to build POT3D (for example, `./my_build.sh`).
   
 See the multiple build example scripts in the `build_examples` folder for more details.
