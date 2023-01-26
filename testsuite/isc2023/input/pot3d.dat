@@ -24,7 +24,7 @@
   bpfile='bp.h5'
   br_photo_file=''
   ncghist=100
-  ncgmax=10000000
+  ncgmax=40000
   epscg=1.e-12
   idebug=0
  /
