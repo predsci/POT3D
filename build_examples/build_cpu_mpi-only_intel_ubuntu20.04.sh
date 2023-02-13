@@ -13,7 +13,7 @@
 #################################################################
 
 # Location of local hdf5 installed with same compiler being used for POT3D:
-DF5_INCLUDE_DIR="/opt/psi/intel/ext_deps/deps/hdf5/include"
+HDF5_INCLUDE_DIR="/opt/psi/intel/ext_deps/deps/hdf5/include"
 HDF5_LIB_DIR="/opt/psi/intel/ext_deps/deps/hdf5/lib"
 # Fortran HDF5 library flags (these can be version dependent):
 HDF5_LIB_FLAGS="-lhdf5_fortran -lhdf5hl_fortran -lhdf5 -lhdf5_hl"
