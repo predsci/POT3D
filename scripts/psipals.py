@@ -16,8 +16,13 @@ def load(N=1024):
         if (rootdir is not None):
             rgbdir="/tools/ps_rsrc/rgb_color_palettes/rgb/"
             ierr=1
+        else:
+            rootdir="."
+            rgbdir="psi_color_palettes/"
+            ierr=1
+    
     if(ierr==0):
-        print("Error in psipals!  Must have CORHEL or PSITOOLS installed and activated!")
+        print("Error in psipals!")
     if (N<1):
         print("Error in psipals!  Must have N>=1")
         ierr=0

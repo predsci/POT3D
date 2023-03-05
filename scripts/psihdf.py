@@ -36,30 +36,24 @@ def rdh5(h5_filename):
 def rdhdf(hdf_filename):
 
     x,y,z,f = rdh5(hdf_filename)
-   
     return (x,y,z,f)
+
 
 def rdhdf_1d(hdf_filename):
 
     x,y,z,f = rdhdf(hdf_filename)
-
     return (x,f)
 
 def rdhdf_2d(hdf_filename):
 
     x,y,z,f = rdhdf(hdf_filename)
-
-    if (hdf_filename.endswith('h5')):
-        return(x,y,f)
-    return (y,x,f)
+    return(x,y,f)
 
 def rdhdf_3d(hdf_filename):
 
     x,y,z,f = rdhdf(hdf_filename)
-    if (hdf_filename.endswith('h5')):
-        return(x,y,z,f)
+    return(x,y,z,f)
 
-    return (z,y,x,f)
 
 def wrh5(h5_filename, x, y, z, f):
 
@@ -115,7 +109,6 @@ def wrhdf(hdf_filename, x, y, z, f):
 
     wrh5(hdf_filename, x, y, z, f)
 
-
 def wrhdf_1d(hdf_filename,x,f):
 
     x = np.asarray(x)
@@ -131,10 +124,7 @@ def wrhdf_2d(hdf_filename,x,y,f):
     y = np.asarray(y)
     z = np.array([])
     f = np.asarray(f)
-    if (hdf_filename.endswith('h5')):
-        wrhdf(hdf_filename,x,y,z,f)
-        return
-    wrhdf(hdf_filename,y,x,z,f)
+    wrhdf(hdf_filename,x,y,z,f)
 
 
 def wrhdf_3d(hdf_filename,x,y,z,f):
@@ -143,8 +133,5 @@ def wrhdf_3d(hdf_filename,x,y,z,f):
     y = np.asarray(y)
     z = np.asarray(z)
     f = np.asarray(f)
-    if (hdf_filename.endswith('h5')):
-        wrhdf(hdf_filename,x,y,z,f)
-        return
-    wrhdf(hdf_filename,z,y,x,f)
+    wrhdf(hdf_filename,x,y,z,f)
 

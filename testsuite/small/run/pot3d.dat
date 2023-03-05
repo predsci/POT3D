@@ -4,7 +4,7 @@
   np=901
  /
  &inputvars
-  ifprec=1
+  ifprec=2
   option='ss'
   r1=2.5
   rfrac=0.0,1.0
@@ -23,7 +23,7 @@
   btfile=''
   bpfile=''
   br_photo_file=''
-  ncghist=0
+  ncghist=100
   ncgmax=10000000
   epscg=1.e-12
   idebug=0

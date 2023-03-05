@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-import h5py as h5
+#!/usr/bin/env python3
 import numpy as np
 import argparse
 import psihdf as ps
