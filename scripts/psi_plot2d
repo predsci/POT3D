@@ -14,7 +14,7 @@ import psipals
 import psimath
 
 ############################
-#  PLOT2D:  Version 1.2.0  #
+#  PLOT2D:  Version 1.3.5  #
 ############################
 # To do: 
 #  - Add horizontal line (-y_hline)
@@ -36,7 +36,7 @@ def p2c(p, r):
   return x, y
 
 def argParsing():
-  parser = argparse.ArgumentParser(description='plot_2d:  This tool saves a png plot of a 2D h5 file.')
+  parser = argparse.ArgumentParser(description='plot_2d:  This tool saves a png plot of a 2D hdf/h5 file.')
 
   parser.add_argument(
             'iFile',
@@ -47,14 +47,40 @@ def argParsing():
             dest='oFile',
             required=False)
 
+  parser.add_argument('-x1',
+            help='X location of box corner to be plotted over map',
+            dest='x1',
+            type=float,
+            required=False)
+
+  parser.add_argument('-x2',
+            help='X location of box corner to be plotted over map',
+            dest='x2',
+            type=float, 
+            required=False)
+
+  parser.add_argument('-y1',
+            help='Y location of box corner to be plotted over map',
+            dest='y1',
+            type=float,
+            required=False)
+
+  parser.add_argument('-y2',
+            help='Y location of box corner to be plotted over map',
+            dest='y2',
+            type=float,
+            required=False)
+
   parser.add_argument('-cmin',
             help='Colormap Minimum',
             dest='cmin',
+            type=float,
             required=False)
 
   parser.add_argument('-cmax',
             help='Colormap Maximum',
             dest='cmax',
+            type=float,
             required=False)
 
   parser.add_argument('-csym',
@@ -74,6 +100,7 @@ def argParsing():
             help='Unit factor to multiply data',
             dest='unit_fac',
             default='1.0',
+            type=float,
             required=False)
 
   parser.add_argument('-title',
@@ -110,6 +137,13 @@ def argParsing():
             default=False,
             required=False)
 
+  parser.add_argument('-noscales',
+            help='Turn off axis scales.',
+            dest='noscales',
+            action='store_true',
+            default=False,
+            required=False)
+
   parser.add_argument('-nocb',
             help='Turn off colorbar.',
             dest='nocb',
@@ -118,7 +152,7 @@ def argParsing():
             required=False)
 
   parser.add_argument('-cmap',
-            help='String of colormap name.  Can be any PSI colormap or matplotlib colormap.',
+            help='String of colormap name.  Can be any PSI colormap or matplotlib colormap. Run plot_psi_colormaps to view all PSI-specific maps.',
             dest='cmap',
             default='psi_blue_red',
             required=False)
@@ -147,21 +181,25 @@ def argParsing():
   parser.add_argument('-xmin',
             help='Set xmin.',
             dest='xmin',
+            type=float,
             required=False)
 
   parser.add_argument('-xmax',
             help='Set xmax.',
             dest='xmax',
+            type=float,
             required=False)
 
   parser.add_argument('-ymin',
             help='Set ymin.',
             dest='ymin',
+            type=float,
             required=False)
 
   parser.add_argument('-ymax',
             help='Set ymax.',
             dest='ymax',
+            type=float,
             required=False)
 
   parser.add_argument('-dpi',
@@ -193,6 +231,13 @@ def argParsing():
   parser.add_argument('-x_vline',
             help='Draw a vertical line at x=x_vline.',
             dest='x_vline',
+            type=float,
+            required=False)
+
+  parser.add_argument('-drawbox',
+            help='Draw a box on the plot.  Set this to x1,x2,y1,y2 which represnts the lower left corner x1,y1 and upper right corner x2,y2.',
+            dest='drawbox',
+            type=str,
             required=False)
 
   parser.add_argument('-bgtrans',
@@ -237,6 +282,7 @@ def argParsing():
             help='Set phi shift to rotate.',
             dest='phishift',
             default=0.0,
+            type=float,
             required=False)
 
   # Parameters for r-theta plots:
@@ -251,11 +297,20 @@ def argParsing():
   parser.add_argument('-rmax',
             help='Set outer boundary of rp plot.',
             dest='rmax',
+            type=float,
             required=False)
 
   parser.add_argument('-r_scale_pow',
             help='Power p to scale data radially as (r/R1AU)^p.',
             dest='r_scale_pow',
+            type=float,
+            default=0.0,
+            required=False)
+
+  parser.add_argument('-draw_square',
+            help='Draw a dark green square at the coords. Use: -draw_square \" x,y\"',
+            dest='draw_square',
+            type=str,
             required=False)
 
   parser.add_argument('-v',
@@ -276,11 +331,7 @@ def run(args):
   if (args.ll and not args.tp):
     args.tp=True
 
-  if (args.r_scale_pow and not args.rp and not args.rt):
-    print("Warning: r_scale_pow set but rp or rt is not. Assuming rp.")
-    args.rp = True
-
-  if (args.rmax and not args.rp and not args.rt):
+  if (args.rmax is not None and not args.rp and not args.rt):
     print("Warning: rmax set but rp or rt is not. Assuming rp.")
     args.rp = True
 
@@ -291,6 +342,13 @@ def run(args):
   if (args.uscales and args.rp):
     print("Warning: Using uniform scaling and rp together not yet supported.  Turning off uniform scales.")
     args.uscales = False
+
+  if (args.drawbox is not None):
+    arg_dict = vars(args)
+    box_coords = np.array(arg_dict['drawbox'].split(','))
+
+  if (args.draw_square is not None):
+    square_coords = args.draw_square.split(',')
 
   # Load colormaps:
   psipals.load()
@@ -361,13 +419,13 @@ def run(args):
 
   if (args.rp) or (args.rt):
     # Set up radial scaling:
-    if (args.r_scale_pow is not None):
+    if (args.r_scale_pow > 0.0):
       R1AU = 214.9395
       data = data * np.power((xvec / R1AU), float(args.r_scale_pow))
-      if (float(args.r_scale_pow) == 1):
+      if (float(args.r_scale_pow) > 1.0):
+        cbstr = cbstr + ' $(r/R_{1AU})^{' + str(args.r_scale_pow) + '}$'
+      else:
         cbstr = cbstr + ' $(r/R_{1AU})$'
-      elif (float(args.r_scale_pow) > 1):
-        cbstr = cbstr + ' $(r/R_{1AU})^' + args.r_scale_pow + '$'
 
   # Set up uniform grid scales if requested:
   if (args.uscales):
@@ -455,20 +513,42 @@ def run(args):
   try:
     if (args.smooth):
       plot_h = plt.pcolormesh(xvec_plot, yvec_plot, data, edgecolor=ecol, linewidth=0.01, shading='gouraud')
+      if (args.x1 and args.x2 and args.y1 and args.y2):
+        points = [(args.x1,args.y1),(args.x1,args.y2),(args.x2,args.y2),(args.x2,args.y1)]
+        line = plt.Polygon(points, closed=True, fill=None, edgecolor='g')
+        ax.add_patch(line)
+
     else:
       plot_h = plt.pcolormesh(xvec_plot, yvec_plot, data, edgecolor=ecol, linewidth=0.01)
+      if (args.x1 and args.x2 and args.y1 and args.y2):
+        points = [(args.x1,args.y1),(args.x1,args.y2),(args.x2,args.y2),(args.x2,args.y1)]
+        line = plt.Polygon(points, closed=True, fill=None, edgecolor='g',linewidth=2,linestyle='--')
+        ax.add_patch(line)
+
   except:
     print(xvec_plot)
     print(yvec_plot)
     print(data.shape)
     raise
 
+  if (args.drawbox is not None):
+    x1 = box_coords[0]
+    x2 = box_coords[1]
+    y1 = box_coords[2]
+    y2 = box_coords[3]
+    points = [(x1,y1),(x1,y2),(x2,y2),(x2,y1)]
+    line = plt.Polygon(points, closed=True, fill=None, edgecolor='g', linestyle='--',linewidth=2)
+    ax.add_patch(line)
+
+  if (args.draw_square is not None):
+    plt.plot(float(square_coords[0]), float(square_coords[1]), color='green', marker='s', markersize=15, zorder=10)
+
   plt.set_cmap(args.cmap)
   plt.clim([cmin, cmax])
 
   plt.xlim(xmin=xmin, xmax=xmax)
   plt.ylim(ymin=ymin, ymax=ymax)
-
+  
   if (args.tp):
     if not args.ll:
       if args.xmin is None:
@@ -541,14 +621,14 @@ def run(args):
       rmax = np.amax([np.abs(xmin),np.abs(ymin),np.abs(xmax),np.abs(ymax)])
 
     plt.xlim(
-       xmin=-rmax if args.xmin is None else args.xmin,
-       xmax=rmax if args.xmax is None else args.xmax)
+       xmin=-rmax if args.xmin is None else float(args.xmin),
+       xmax=rmax if args.xmax is None else float(args.xmax))
     plt.ylim(
-       ymin=-rmax if args.ymin is None else args.ymin,
-       ymax=rmax if args.ymax is None else args.ymax)
+      ymin=-rmax if args.ymin is None else float(args.ymin),
+      ymax=rmax if args.ymax is None else float(args.ymax))
 
     if (args.rt):
-      plt.xlim(xmin=0 if args.xmin is None else args.xmin)
+      plt.xlim(xmin=0 if args.xmin is None else float(args.xmin))
 
     plt.xlabel('x ($R_{\odot}$)', {'fontsize': fsize, 'color': tc})
     plt.ylabel('y ($R_{\odot}$)', {'fontsize': fsize, 'color': tc})
@@ -557,8 +637,8 @@ def run(args):
     ydtmi = 1
 
   else:
-    xdtmi = np.abs(xmax-xmin)/15
-    ydtmi = np.abs(ymax-ymin)/15
+    xdtmi = np.abs(xmax-xmin)/15.0
+    ydtmi = np.abs(ymax-ymin)/15.0
 
   if (args.finegrid):
       minor_xticks = np.arange(xmin, xmax, xdtmi)
@@ -643,6 +723,10 @@ def run(args):
 
   if (not args.nogrid):
     ax.grid()
+
+  if (args.noscales):
+    plot_h.axes.get_xaxis().set_visible(False)
+    plot_h.axes.get_yaxis().set_visible(False)
 
   if (args.noax):
     ax.set_frame_on(False)
