@@ -17,7 +17,7 @@ def load(N=1024):
             rgbdir="/tools/ps_rsrc/rgb_color_palettes/rgb/"
             ierr=1
         else:
-            rootdir="."
+            rootdir="./"
             rgbdir="psi_color_palettes/"
             ierr=1
     
@@ -29,9 +29,9 @@ def load(N=1024):
 
     if (ierr==1):
 # Loop over dat files, extract name and make colormaps.
-        for filename in os.listdir(rootdir+rgbdir):
+        for filename in os.listdir(os.path.join(rootdir, rgbdir)):
             if filename.endswith(".dat"):
-                pal_dat_file=os.path.join(rootdir+rgbdir, filename)
+                pal_dat_file=os.path.join(os.path.join(rootdir, rgbdir), filename)
                 cmap_name="psi_"+os.path.splitext(filename)[0]
                 pal = np.loadtxt(pal_dat_file)
             # Because of wierd IDL colormap format,
