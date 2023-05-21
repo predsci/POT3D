@@ -5,6 +5,7 @@ valid_run=$2
 
 cX="\033[0m"
 cG="\033[32m"
+cR="\033[31m"
 echo="echo -e"
 
 br1=$(grep "Energy in Br" $1)
@@ -41,13 +42,13 @@ else
   ${echo} "Run may have ${cR}FAILED${cX} validation!"
   echo " "
   echo "RUN1 BR: $br1"
-  echo "RUN2 BR: $br1"
+  echo "RUN2 BR: $br2"
   echo " "
   echo "RUN1 BT: $bt1"
-  echo "RUN2 BT: $bt1"
+  echo "RUN2 BT: $bt2"
   echo " "
   echo "RUN1 BP: $bp1"
-  echo "RUN2 BP: $bp1"
+  echo "RUN2 BP: $bp2"
 fi
 
 exit 0
