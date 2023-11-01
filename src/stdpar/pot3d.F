@@ -1111,11 +1111,6 @@ c
         call endrun (.true.)
       end if
 c
-c ****** Set the GPU device number based on local rank.
-c ****** NOTE! This assumes than #GPUs per node = #MPI ranks per node.
-c
-!$acc set device_num(iprocsh)
-c
       end subroutine
 c#######################################################################
       subroutine check_input
