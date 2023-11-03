@@ -5333,7 +5333,7 @@ c
         enddo
         do concurrent (i=1:nr)
           temp_sum0=0.
-          do k=2,npm1
+          do concurrent (k=2:npm1) reduce(+:temp_sum0)
             temp_sum0=temp_sum0+x(i,2,k)*dph(k)*pl_i
           enddo
           sum0(i)=temp_sum0
@@ -5346,7 +5346,7 @@ c
         enddo
         do concurrent (i=1:nr)
           temp_sum0=0.
-          do k=2,npm1
+          do concurrent (k=2:npm1) reduce(+:temp_sum0)
             temp_sum0=temp_sum0+x(i,ntm1,k)*dph(k)*pl_i
           enddo
           sum1(i)=temp_sum0
