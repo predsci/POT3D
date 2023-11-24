@@ -23,7 +23,7 @@
   btfile=''
   bpfile=''
   br_photo_file=''
-  ncghist=25
+  ncghist=10
   ncgmax=10000000 
   epscg=1.e-12
   idebug=0
