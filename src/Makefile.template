@@ -14,11 +14,7 @@ endif
 
 FFLAGS = <FFLAGS> $(PARADD) -I<HDF5_INCLUDE_DIR>
 
-OBJS0 = number_types.o \
- zm_parse_modules.o \
- zm_parse.o \
- zm_sds_modules.o \
- zm_sds.o
+OBJS0 = psi_io.o
 
 ifeq ($(POT3D_CUSPARSE),1)
   OBJS = $(OBJS0) lusol_cusparse.o pot3d_cpp.o
@@ -39,19 +35,7 @@ clean:
 pot3d_cpp.f: pot3d.F
 	$(FC) -E -cpp $(IF_DEF) > pot3d_cpp.f $<
 
-number_types.o: number_types.f
-	$(FC) -c $(FFLAGS) $<
-
-zm_parse_modules.o: zm_parse_modules.f
-	$(FC) -c $(FFLAGS) $<
-
-zm_parse.o: zm_parse.f zm_parse_modules.f number_types.f
-	$(FC) -c $(FFLAGS) $<
-
-zm_sds_modules.o: zm_sds_modules.f
-	$(FC) -c $(FFLAGS) $<
-
-zm_sds.o: zm_sds.f zm_sds_modules.f number_types.f
+psi_io.o: psi_io.f90
 	$(FC) -c $(FFLAGS) $<
 
 lusol_cusparse.o: lusol_cusparse.c 
