@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import argparse
-import psihdf as ps
+import psi_io as ps
 
 def argParsing():
 

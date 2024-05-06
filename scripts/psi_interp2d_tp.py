@@ -5,7 +5,7 @@ import os
 import sys
 import signal
 import argparse
-import psihdf as ps
+import psi_io as ps
 
 def signal_handler(signal, frame):
   print('You pressed Ctrl+C! Stopping!')

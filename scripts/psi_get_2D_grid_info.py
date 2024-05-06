@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import matplotlib.pyplot as plt
 import numpy as np
-import psihdf as ps
+import psi_io as ps
 import argparse
 
 def argParsing():
