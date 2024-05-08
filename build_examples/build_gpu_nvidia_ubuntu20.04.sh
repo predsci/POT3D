@@ -34,7 +34,7 @@ FFLAGS="-O3 -march=native -stdpar=gpu -acc=gpu -gpu=nomanaged,nounified -Minfo=a
 ###########################################################################
 
 POT3D_CUSPARSE=1
-CCFLAGS="-O3 -march=native -acc=gpu -gpu=nomanaged -Minfo=accel"
+CCFLAGS="-O3 -march=native -acc=gpu -gpu=nomanaged,nounified -Minfo=accel"
 
 ###########################################################################
 ###########################################################################

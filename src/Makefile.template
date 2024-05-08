@@ -5,14 +5,14 @@ POT3D_CUSPARSE=<POT3D_CUSPARSE>
 ifeq ($(POT3D_CUSPARSE),1)
   IF_DEF = -DCUSPARSE
   CC = nvc
-  CCFLAGS = <CCFLAGS>
-  PARADD = -cudalib=cusparse
+  ADDFLAGS = -cudalib=cusparse -lnvJitLink
+  CCFLAGS = <CCFLAGS> $(ADDFLAGS)
 else
   IF_DEF = 
-  PARADD =
+  ADDFLAGS = 
 endif
 
-FFLAGS = <FFLAGS> $(PARADD) -I<HDF5_INCLUDE_DIR>
+FFLAGS = <FFLAGS> $(ADDFLAGS) -I<HDF5_INCLUDE_DIR>
 
 OBJS0 = psi_io.o
 
@@ -29,8 +29,8 @@ all: $(OBJS)
 	rm -f *.mod *.o 2>/dev/null
 
 clean:
-	rm pot3d 2>/dev/null
 	rm -f *.mod *.o pot3d_cpp.f 2>/dev/null
+	rm pot3d 2>/dev/null
 
 pot3d_cpp.f: pot3d.F
 	$(FC) -E -cpp $(IF_DEF) > pot3d_cpp.f $<
@@ -39,7 +39,7 @@ psi_io.o: psi_io.f90
 	$(FC) -c $(FFLAGS) $<
 
 lusol_cusparse.o: lusol_cusparse.c 
-	$(CC) -c $(CCFLAGS) ${PARADD} $<
+	$(CC) -c $(CCFLAGS) $<
 
 pot3d_cpp.o: pot3d_cpp.f
 	$(FC) -c $(FFLAGS) $<
