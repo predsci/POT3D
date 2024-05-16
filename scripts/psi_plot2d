@@ -611,8 +611,8 @@ def run(args):
       if args.xmax is None:
         plt.xlim(xmax=2 * np.pi)
       if args.xmin is None and args.xmax is None:
-        plt.xticks((0, np.pi / 2, np.pi, 3 * np.pi / 2, 2 * np.pi), ('0', '$\pi/2$', '$\pi$', '$3\pi/2$', '$2\pi$'))
-      plt.xlabel('$\phi$', {'fontsize': fsize, 'color': tc})
+        plt.xticks((0, np.pi / 2, np.pi, 3 * np.pi / 2, 2 * np.pi), ('0', '$\\pi/2$', '$\\pi$', '$3\\pi/2$', '$2\\pi$'))
+      plt.xlabel('$\\phi$', {'fontsize': fsize, 'color': tc})
       xdtmi = np.pi / 8
       if (args.sinlat):
         if args.ymin is None:
@@ -631,7 +631,7 @@ def run(args):
         if args.ymin is None and args.ymax is None:
           plt.yticks(
             (0, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi),
-            ('0', '$\pi/4$', '$\pi/2$', '$3\pi/4$', '$\pi$')
+            ('0', '$\\pi/4$', '$\\pi/2$', '$3\\pi/4$', '$\\pi$')
           )
         plt.ylabel('Colatitude', {'fontsize': fsize, 'color': tc})
         plt.gca().invert_yaxis()
@@ -685,8 +685,8 @@ def run(args):
     if (args.rt):
       plt.xlim(xmin=0 if args.xmin is None else float(args.xmin))
 
-    plt.xlabel('x ($R_{\odot}$)', {'fontsize': fsize, 'color': tc})
-    plt.ylabel('y ($R_{\odot}$)', {'fontsize': fsize, 'color': tc})
+    plt.xlabel('x ($R_{\\odot}$)', {'fontsize': fsize, 'color': tc})
+    plt.ylabel('y ($R_{\\odot}$)', {'fontsize': fsize, 'color': tc})
 
     xdtmi = 1
     ydtmi = 1

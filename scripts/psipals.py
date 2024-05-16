@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import matplotlib as mpl
 import matplotlib.cm as cm
 #from matplotlib.colors import ListedColormap
 from matplotlib.colors import LinearSegmentedColormap
@@ -42,7 +43,12 @@ def load(N=1024):
             pal = pal/255.0
             #cmap_pal = ListedColormap(pal, name=cmap_name, N=None)
             cmap_pal = LinearSegmentedColormap.from_list(cmap_name, pal, N=N)
-            cm.register_cmap(name=cmap_name, cmap=cmap_pal)
+            mpl_version = mpl.__version__
+            major,minor,patch = map(int,mpl_version.split('.')[:3])
+            if major > 3 or (major == 3 and (minor >=4)):
+                mpl.colormaps.register(cmap=cmap_pal,name=cmap_name)
+            else:
+                cm.register_cmap(name=cmap_name, cmap=cmap_pal)
     else:
         print("Warning!  PSIPALS did not load!")
 
