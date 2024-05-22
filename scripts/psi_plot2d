@@ -2,12 +2,13 @@
 import argparse
 import signal
 import sys
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 import psi_io as ps
 import psipals
 import psimath
@@ -646,7 +647,7 @@ def run(args):
           (0, 90, 180, 270, 360),
           ('0', '90', '180', '270', '360')
         )
-      plt.xlabel(r'Longitude ($^\circ$)', {'fontsize': fsize, 'color': tc})
+      plt.xlabel(r'Longitude ($^\\circ$)', {'fontsize': fsize, 'color': tc})
       xdtmi = 15
       if (args.sinlat):
         if args.ymin is None:
@@ -667,7 +668,7 @@ def run(args):
             (-90, -45, 0, 45, 90),
             ('-90', '-45', '0', '45', '90')
           )
-        plt.ylabel(r'Latitude ($^\circ$)', {'fontsize': fsize, 'color': tc})
+        plt.ylabel(r'Latitude ($^\\circ$)', {'fontsize': fsize, 'color': tc})
         ydtmi = 5
   elif (args.rp) or (args.rt):
     if (args.rmax is not None):
