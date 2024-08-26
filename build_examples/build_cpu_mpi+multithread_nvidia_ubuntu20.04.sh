@@ -27,8 +27,8 @@ FC=mpif90
 # the SAME COMPILER used here, and is in the run-time environment.
 #################################################################
 
-HDF5_INCLUDE_DIR="/opt/psi/nv/ext_deps/deps/hdf5/include"
-HDF5_LIB_DIR="/opt/psi/nv/ext_deps/deps/hdf5/lib"
+HDF5_INCLUDE_DIR="<PATH_TO_HDF5>/include"
+HDF5_LIB_DIR="<PATH_TO_HDF5>/lib"
 
 ##################################################################
 # Please set the HDF5 linker flags to match the installed version.
@@ -40,7 +40,7 @@ HDF5_LIB_FLAGS="-lhdf5_fortran -lhdf5hl_fortran -lhdf5 -lhdf5_hl"
 # Please set the compile flags based on your compiler and hardware setup.
 ###########################################################################
 
-FFLAGS="-O3 -march=native -stdpar=multicore -acc=multicore"
+FFLAGS="-O3 -march=native -stdpar=multicore -mp=multicore"
 
 ###########################################################################
 # If using NV HPC SDK for GPUs, with CUDA version >= 11.3, you can set 

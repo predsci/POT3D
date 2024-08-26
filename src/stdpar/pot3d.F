@@ -52,8 +52,8 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='r4.1.0stdpar'
-      character(*), parameter :: update='11/01/2023'
+      character(*), parameter :: vers  ='4.2.0'
+      character(*), parameter :: update='08/21/2024'
 c
       end module
 c#######################################################################
@@ -76,7 +76,7 @@ c
 c
       integer, parameter :: r_typ=KIND_REAL_8
 c
-      end module     
+      end module
 c#######################################################################
       module number_types_pc
 c
@@ -5907,7 +5907,6 @@ c
 c
 c-----------------------------------------------------------------------
 c
-c
 c ****** Get Br.
 c
       do concurrent (k=1:np, j=1:nt, i=1:nrm1)
@@ -6961,5 +6960,11 @@ c       - Changed behavior of solver residual reporting
 c         to also output to terminal.
 c       - Removed flush_output_file() routine in favor of Fortran 2003
 c         intrinsic FLUSH.
+c
+c ### Version 4.2.0, 08/21/2024, modified by MS/RC:
+c
+c       - Replaced OpenACC with OpenMP Target directives.
+c         There remains a single OpenACC directive for device selection
+c         in order to work with nvfortran.
 c
 c#######################################################################

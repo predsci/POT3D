@@ -27,8 +27,8 @@ FC=mpif90
 # the SAME COMPILER used here, and is in the run-time environment.
 #################################################################
 
-HDF5_INCLUDE_DIR="/opt/psi/nv/ext_deps/deps/hdf5/include"
-HDF5_LIB_DIR="/opt/psi/nv/ext_deps/deps/hdf5/lib"
+HDF5_INCLUDE_DIR="<PATH_TO_HDF5>/include"
+HDF5_LIB_DIR="<PATH_TO_HDF5>/lib"
 
 ##################################################################
 # Please set the HDF5 linker flags to match the installed version.

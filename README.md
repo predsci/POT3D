@@ -1,17 +1,16 @@
 ![POT3D](pot3d_logo.png)
   
-# POT3D: High Performance Potential Field Solver #
-Predictive Science Inc.  
-www.predsci.com
+# POT3D: High Performance Potential Field Solver 
+[Predictive Science Inc.](https://www.predsci.com)  
   
-## OVERVIEW ##
+## OVERVIEW  
   
-`POT3D` is a Fortran code that computes potential field solutions to approximate the solar coronal magnetic field using observed photospheric magnetic fields as a boundary condition.  It can be used to generate potential field source surface (PFSS), potential field current sheet (PFCS), and open field (OF) models. It has been (and continues to be) used for numerous studies of coronal structure and dynamics.  The code is highly parallelized using [MPI](https://www.mpi-forum.org) and is GPU-accelerated using Fortran standard parallelism (do concurrent) and [OpenACC](https://www.openacc.org/), along with an option to use the [NVIDIA cuSparse library](https://developer.nvidia.com/cusparse). The [HDF5](https://www.hdfgroup.org/solutions/hdf5) file format is used for input/output.
+`POT3D` is a Fortran code that computes potential field solutions to approximate the solar coronal magnetic field using observed photospheric magnetic fields as a boundary condition.  It can be used to generate potential field source surface (PFSS), potential field current sheet (PFCS), and open field (OF) models. It has been (and continues to be) used for numerous studies of coronal structure and dynamics.  The code is highly parallelized using [MPI](https://www.mpi-forum.org) and is GPU-accelerated using Fortran standard parallelism (do concurrent) and [OpenMP Target](https://www.openmp.org/) for data movement and device selection, along with an option to use the [NVIDIA cuSparse library](https://developer.nvidia.com/cusparse). The [HDF5](https://www.hdfgroup.org/solutions/hdf5) file format is used for input/output.
   
-`POT3D` is the potential field solver for the WSA model in the CORHEL software suite publicly hosted at the [Community Coordinated Modeling Center (CCMC)](https://ccmc.gsfc.nasa.gov/models/modelinfo.php?model=CORHEL/MAS/WSA/ENLIL).  
-A version of `POT3D` that includes GPU-acceleration with both MPI+OpenACC and MPI+[OpenMP](https://www.openmp.org//) was released as part of the Standard Performance Evaluation Corporation's (SPEC) beta version of the [SPEChpc(TM) 2021 benchmark suites](https://www.spec.org/hpc2021).  
+`POT3D` is the potential field solver for the WSA/DCHB model in the CORHEL software suite publicly hosted at the [Community Coordinated Modeling Center (CCMC)](https://ccmc.gsfc.nasa.gov/models/modelinfo.php?model=CORHEL/MAS/WSA/ENLIL).  
+A version of `POT3D` that includes GPU-acceleration with both MPI+[OpenACC](https://www.openacc.org) and MPI+OpenMP was released as part of the Standard Performance Evaluation Corporation's (SPEC) beta version of the [SPEChpc(TM) 2021 benchmark suites](https://www.spec.org/hpc2021).  
   
-Details of the `POT3D` code can be found in the following publications:  
+Details of the `POT3D` code can be found in these publications:  
   
  - *Variations in Finite Difference Potential Fields*.  
  Caplan, R.M., Downs, C., Linker, J.A., and Mikic, Z.  [Ap.J. 915,1 44 (2021)](https://iopscience.iop.org/article/10.3847/1538-4357/abfd2f)
@@ -20,7 +19,7 @@ Details of the `POT3D` code can be found in the following publications:
   
 --------------------------------
   
-## HOW TO BUILD POT3D ##
+## HOW TO BUILD POT3D 
   
 Copy a build script from the `build_examples` folder that is closest to your setup to the base directory.  
 Modify the script to set the `HDF5` library paths/flags and compiler flags compatible with your system environment.  
@@ -28,7 +27,7 @@ Then, run the script to build POT3D (for example, `./my_build.sh`).
   
 See the multiple build example scripts in the `build_examples` folder for more details.
   
-### Validate Installation ###
+### Validate Installation 
   
 After building the code, you can test it is working by running `./validate.sh`.  
 This will perform 2 runs of a small case using 1 and 2 MPI ranks respectively.
@@ -41,13 +40,13 @@ Note that these validation runs use `ifprec=1` even if POT3D was build with cuSp
   
 --------------------------------
   
-## HOW TO USE POT3D ##
+## HOW TO USE POT3D  
   
 ### Setting Input Options
   
 POT3D uses a namelist in an input text file called `pot3d.dat` to set all parameters of a run.  See the provided `pot3d_input_documentation.txt` file for details on the various parameter options.  For any run, an input 2D data set in HDF5 format is required for the lower radial magnetic field (`Br`) boundary condition.  Examples of this file are contained in the `examples` and `testsuite` folders.
   
-### Launching the Code ###
+### Launching the Code 
   
 To run `POT3D`, set the desired run parameters in a `pot3d.dat` text file, then copy or link the `pot3d` executable into the same directory as `pot3d.dat`
 and run the command:  
@@ -59,7 +58,7 @@ For example:  `mpiexec -np 1024 ./pot3d`
 For CPU runs, set `ifprec=2` in the `pot3d.dat` input file.  
 For GPU runs, set `ifprec=1` in the `pot3d.dat` input file, unless you build with the `cuSparse` library option, in which case you should set `ifprec=2`.
   
-### Running POT3D on GPUs ###
+### Running POT3D on GPUs 
   
 For standard cases, one should launch the code such that the number of MPI ranks per node is equal to the number of GPUs per node  
 e.g.  
@@ -70,7 +69,7 @@ or
 If the `cuSparse` library option was used to build the code, than set `ifprec=2` in `pot3d.dat`.  
 If the `cuSparse` library option was NOT used to build the code, it is critical to set `ifprec=1` for efficient performance.
   
-### Memory Requirements ###
+### Memory Requirements 
   
 To estimate how much memory (RAM) is needed for a run, compute:  
   
@@ -79,22 +78,22 @@ To estimate how much memory (RAM) is needed for a run, compute:
 where `nr`, `nt`, and `np` are the chosen problem sizes in the `r`, `theta`, and `phi` dimension.  
 Note that this estimate is when using `ifprec=1`.  If using `ifprec=2`, the required memory is ~2x higher on the CPU, and even higher when using `cuSparse` on the GPU.
   
-### Solution Output ###
+### Solution Output 
   
 Depending on the input parameters, `POT3D` can have various outputs. Typically, the three components of the potential magnetic field is output as `HDF5` files. In every run, the following two text files are output:
 
  - `pot3d.out`      An output log showing grid information and magnetic energy diagnostics.
  - `timing.out`     Time profile information of the run.
   
-### Helpful Scripts ###
+### Helpful Scripts 
   
 Some useful python scripts for reading and plotting the POT3D input data, and reading the output data can be found in the  `scripts` folder.  
   
 -----------------------------
   
-## EXAMPLES and TESTSUITE ##
+## EXAMPLES and TESTSUITE 
   
-### Examples ###
+### Examples 
   
 In the `examples` folder, we provide ready-to-run examples of three use cases of `POT3D` in the following folders:
   
@@ -105,7 +104,7 @@ A standard PFCS run using the outer boundary of the PFSS example as its inner bo
 3. **`/open_field`**  
 An example of computing the "open field" model from the solar surface out to 30 Rsun using the same input surface Br as the PFSS example. The magnetic field solution produced is unsigned.  
 
-### Testsuite ###
+### Testsuite 
 
 In the `testsuite` folder, we provide test cases of various sizes that can be used to validate and test the performance of `POT3D`.  
 Each test case contains an `input` folder with the run input files, a `run` folder used to run the test, and a `validation` folder containing the output diagnotics used to validate the test, as well as a text file named `validation_run_information.txt`  containing information on how the validation run was computed (system, compiler, number of ranks, etc.) with performance details.  Note that all tests are set to use `ifprec=1` only.  An option to use `ifprec=2` will be added later.
