@@ -52,8 +52,8 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.2.0'
-      character(*), parameter :: update='08/21/2024'
+      character(*), parameter :: vers  ='4.2.1'
+      character(*), parameter :: update='09/19/2024'
 c
       end module
 c#######################################################################
@@ -5343,7 +5343,7 @@ c
 c-----------------------------------------------------------------------
 c
       real(r_typ), dimension(nr,nt,np) :: x
-      real(r_typ) :: vmask
+      real(r_typ) :: vmask,temp_sum0
 c
 c-----------------------------------------------------------------------
 c
@@ -5386,12 +5386,14 @@ c
         do concurrent (i=1:nr)
           sum0(i)=0
         enddo
-!$omp target teams distribute parallel do collapse(2)
-        do k=2,npm1
-          do i=1,nr
-!$omp atomic
-            sum0(i)=sum0(i)+x(i,2,k)*dph(k)*pl_i
+!$omp target teams loop
+        do i=1,nr
+          temp_sum0=0.
+!$omp loop reduction(+:temp_sum0)
+          do k=2,npm1
+            temp_sum0=temp_sum0+x(i,2,k)*dph(k)*pl_i
           enddo
+          sum0(i)=temp_sum0
         enddo
       end if
 c
@@ -5399,12 +5401,14 @@ c
         do concurrent (i=1:nr)
           sum1(i)=0
         enddo
-!$omp target teams distribute parallel do collapse(2)
-        do k=2,npm1
-          do i=1,nr
-!$omp atomic
-            sum1(i)=sum1(i)+x(i,ntm1,k)*dph(k)*pl_i
+!$omp target teams loop 
+        do i=1,nr
+          temp_sum0=0.
+!$omp loop reduction(+:temp_sum0)
+          do k=2,npm1
+            temp_sum0=temp_sum0+x(i,ntm1,k)*dph(k)*pl_i
           enddo
+          sum1(i)=temp_sum0
         enddo
       end if
 c
@@ -5538,7 +5542,7 @@ c-----------------------------------------------------------------------
 c
       cgdot=0.
 c
-!$omp target teams distribute parallel do reduction(+:cgdot)
+!$omp target loop reduction(+:cgdot)
       do i=1,N
         cgdot=cgdot+x(i)*y(i)
       enddo
@@ -6026,8 +6030,7 @@ c
       wr=0.
       wt=0.
       wp=0.
-!$omp target teams distribute parallel do collapse(3)
-!$omp& reduction(+:wr,wt,wp) 
+!$omp target loop collapse(3) reduction(+:wr,wt,wp)
       do k=2,npm1
         do j=2,ntm1
           do i=2,nrm1
@@ -7025,5 +7028,12 @@ c
 c       - Replaced OpenACC with OpenMP Target directives.
 c         There remains a single OpenACC directive for device selection
 c         in order to work with nvfortran.
+c
+c ### Version 4.2.1, 09/19/2024, modified by RC:
+c
+c       - Changed array reduction loops to use 
+c         OpenMP reductions instead of atomics.
+c       - Updated OpenMP target directives to use the 
+c         more streamlined "loop" syntax.
 c
 c#######################################################################
