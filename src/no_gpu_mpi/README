@@ -1,0 +1,8 @@
+This version of the code has no GPU-aware MPI.
+The means, all data is transfered to and from the CPU and GPU 
+for all MPI calls.
+This can make teh code VERY slow, but for now, it might be needed for 
+Intel GPU compatibility.
+
+
+

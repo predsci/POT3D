@@ -52,8 +52,8 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.2.0_STDPAR'
-      character(*), parameter :: update='08/21/2024'
+      character(*), parameter :: vers  ='4.2.2_nogpumpi'
+      character(*), parameter :: update='12/05/2024'
 c
       end module
 c#######################################################################
@@ -1131,6 +1131,12 @@ c
         end if
         call endrun (.true.)
       end if
+c
+c ****** Set the GPU device number based on local rank.
+c ****** NOTE! This assumes than #GPUs per node = #MPI ranks per node.
+c
+!$    call omp_set_default_device (iprocsh)
+!$acc set device_num(iprocsh)
 c
       end subroutine
 c#######################################################################
@@ -2380,6 +2386,7 @@ c
       allocate (x_ax(nr,nt,np))
       phi(:,:,:)=0.
       x_ax(:,:,:)=0.
+!$omp target enter data map(to:phi,x_ax)
 c
 c ****** Allocate polar boundary arrays.
 c
@@ -2387,6 +2394,7 @@ c
       allocate (sum1(nr))
       sum0(:)=0.
       sum1(:)=0.
+!$omp target enter data map(to:sum0,sum1)
 c
 c ****** Allocate the local magnetic field arrays.
 c
@@ -2457,10 +2465,12 @@ c ****** Allocate the boundary radial magnetic field array(s).
 c
       allocate (br0(nt,np))
       br0(:,:)=0.
+!$omp target enter data map(to:br0)
 c
       if (validation_run) then
         allocate (br1(nt,np))
         br1(:,:)=0.
+!$omp target enter data map(to:br1)
       end if
 c
       return
@@ -2645,6 +2655,8 @@ c
       rh_i(:)=one/rh(:)
       drh_i(:)=one/drh(:)
 c
+!$omp target enter data map(to:r,r2,r_i,dr,dr_i,dr1,drn,rh,rh_i,drh,
+!$omp&                         drh_i)
       return
       end
 c#######################################################################
@@ -2744,6 +2756,8 @@ c
         st_i(j)=one/st(j)
       enddo
 c
+!$omp target enter data map(to:t,th,dt,dth,p,ph,dp,dph,st,ct,sth,cth,
+!$omp&                 sp,cp,sph,cph,dt_i,dth_i,st_i,sth_i,dp_i,dph_i)
       return
       end
 c#######################################################################
@@ -3751,6 +3765,7 @@ c
           br0(j,k)=br0_g(j0_g+j-1,k0_g+k-1)
         enddo
       enddo
+!$omp target update to(br0)
 c
       deallocate(br0_g)
 c
@@ -3819,11 +3834,14 @@ c
       allocate(x_cg(N))
       rhs_cg(:)=0.
       x_cg(:)=0.
+!$omp target enter data map(to:rhs_cg,x_cg)
 c
       call getM (N,a_offsets,M)
       call alloc_pot3d_matrix_coefs
       call load_matrix_pot3d_solve
+!$omp target enter data map(to:a)
       call load_preconditioner_pot3d_solve
+!$omp target enter data map(to:a_i)
 c
 c ****** Use a trick to accumulate the contribution of the
 c ****** boundary conditions (i.e., the inhomogenous part).
@@ -3858,6 +3876,7 @@ c
       call set_boundary_points (phi,one)
       call seam (phi,nr,nt,np)
 c
+!$omp target exit data map(delete:rhs_cg,x_cg,a,a_i)
       call dealloc_pot3d_matrix_coefs
       deallocate(rhs_cg)
       deallocate(x_cg)
@@ -3950,6 +3969,7 @@ c
           br1(j,k)=br1_g(j0_g+j-1,k0_g+k-1)
         enddo
       enddo
+!$omp target update to(br0,br1)
 c
       deallocate(br0_g)
       deallocate(br1_g)
@@ -4002,6 +4022,7 @@ c
       call set_boundary_points (phi,one)
       call seam (phi,nr,nt,np)
 c
+!$omp target enter data map(alloc:br,bt,bp)
 c
 c ****** Set Br.
 c
@@ -4053,6 +4074,8 @@ c
 c ****** Reset phi.
 c
       phi(:,:,:)=0.
+!$omp target update to(phi)
+!$omp target exit data map(delete:br,bt,bp)
 c
       end subroutine
 c#######################################################################
@@ -4175,6 +4198,7 @@ c
 c-----------------------------------------------------------------------
 c
       ncg=0
+!$omp target enter data map(alloc:p,ap)
 c
 c ****** Get the norm of the RHS.
 c
@@ -4250,6 +4274,7 @@ c
 c
       enddo
 c
+!$omp target exit data map(delete:p,ap)
       end subroutine
 c#######################################################################
       subroutine ernorm (bdotb,rdotr,ierr)
@@ -4430,10 +4455,12 @@ c-----------------------------------------------------------------------
 c
       deallocate (a)
       deallocate (a_i)
+!$omp target exit data map(delete:a,a_i)
 c
       if (ifprec.eq.2) then
 #ifdef CUSPARSE
         call unload_lusol_cusparse
+!$omp target exit data map(delete:a_csr,a_csr_ja,a_csr_ia)
 #endif
         deallocate (a_csr)
         deallocate (lu_csr)
@@ -4559,9 +4586,12 @@ c
 #ifdef CUSPARSE
       cN=N
       cM=M
+!$omp target enter data map(to:a_csr,a_csr_ja,a_csr_ia)
+!$omp target data use_device_ptr(a_csr,a_csr_ja,a_csr_ia)
       call load_lusol_cusparse (C_LOC(a_csr(1)),
      &                          C_LOC(a_csr_ia(1)),
      &                          C_LOC(a_csr_ja(1)),cN,cM)
+!$omp end target data
 #else
 c
 c ****** Overwrite CSR A with preconditioner L and U matrices:
@@ -5106,9 +5136,12 @@ c
 c ****** ILU0 Partial-Block-Jacobi:
 c
 #ifdef CUSPARSE
+!$omp target data use_device_ptr(x)
         call lusol_cusparse(C_LOC(x(1)))
+!$omp end target data
 c
 #else
+!$omp target update from(x)
 c
 c ****** Convert input array to single precision.
 c
@@ -5124,6 +5157,7 @@ c
           x(i) = real(x_32(i),r_typ)
         enddo
 c
+!$omp target update to(x)
 #endif
       endif
 c
@@ -5352,9 +5386,11 @@ c
         do concurrent (i=1:nr)
           sum0(i)=0
         enddo
-        do concurrent (i=1:nr)
+!$omp target teams loop
+        do i=1,nr
           temp_sum0=0.
-          do concurrent (k=2:npm1) reduce(+:temp_sum0)
+!$omp loop reduction(+:temp_sum0)
+          do k=2,npm1
             temp_sum0=temp_sum0+x(i,2,k)*dph(k)*pl_i
           enddo
           sum0(i)=temp_sum0
@@ -5365,9 +5401,11 @@ c
         do concurrent (i=1:nr)
           sum1(i)=0
         enddo
-        do concurrent (i=1:nr)
+!$omp target teams loop 
+        do i=1,nr
           temp_sum0=0.
-          do concurrent (k=2:npm1) reduce(+:temp_sum0)
+!$omp loop reduction(+:temp_sum0)
+          do k=2,npm1
             temp_sum0=temp_sum0+x(i,ntm1,k)*dph(k)*pl_i
           enddo
           sum1(i)=temp_sum0
@@ -5433,13 +5471,17 @@ c
       call timer_on
 c
       if (tb0) then
+!$omp target update from(a0)
         call MPI_Allreduce (MPI_IN_PLACE,a0,n,ntype_real,
-     &                        MPI_SUM,comm_phi,ierr)
+     &                      MPI_SUM,comm_phi,ierr)
+!$omp target update to(a0)
       end if
 c
       if (tb1) then
+!$omp target update from(a1)
         call MPI_Allreduce (MPI_IN_PLACE,a1,n,ntype_real,
-     &                        MPI_SUM,comm_phi,ierr)
+     &                      MPI_SUM,comm_phi,ierr)
+!$omp target update to(a1)
       end if
 c
       call timer_off (c_sumphi)
@@ -5502,7 +5544,8 @@ c-----------------------------------------------------------------------
 c
       cgdot=0.
 c
-      do concurrent (i=1:N) reduce(+:cgdot)
+!$omp target teams loop reduction(+:cgdot)
+      do i=1,N
         cgdot=cgdot+x(i)*y(i)
       enddo
 c
@@ -5587,6 +5630,8 @@ c
       real(r_typ), dimension(n2,n3) :: sbuf12,rbuf12
       real(r_typ), dimension(n1,n3) :: sbuf21,rbuf21
       real(r_typ), dimension(n1,n3) :: sbuf22,rbuf22
+      real(r_typ), dimension(n1,n2) :: sbuf31,rbuf31
+      real(r_typ), dimension(n1,n2) :: sbuf32,rbuf32
 c
 c-----------------------------------------------------------------------
 c
@@ -5609,28 +5654,44 @@ c
       call timer_on
 c
 c ****** Seam the third (periodic) dimension.
-c ****** Since halo data is stride-1, no need for buffers.
+c
+!$omp target enter data map(alloc:sbuf31,sbuf32,rbuf31,rbuf32)
 c
       lbuf=n1*n2
 c
-      call MPI_Isend (a(:,:,n3-1),lbuf,ntype_real,iproc_pp,tag,
+      do concurrent (j=1:n2, i=1:n1)
+        sbuf31(i,j)=a(i,j,n3-1)
+        sbuf32(i,j)=a(i,j,   2)
+      enddo
+c
+!$omp target update from(sbuf31,sbuf32)
+      call MPI_Isend (sbuf31,lbuf,ntype_real,iproc_pp,tag,
      &                comm_all,reqs(1),ierr)
 c
-      call MPI_Isend (a(:,:,   2),lbuf,ntype_real,iproc_pm,tag,
+      call MPI_Isend (sbuf32,lbuf,ntype_real,iproc_pm,tag,
      &                comm_all,reqs(2),ierr)
 c
-      call MPI_Irecv (a(:,:, 1),lbuf,ntype_real,iproc_pm,tag,
+      call MPI_Irecv (rbuf31,lbuf,ntype_real,iproc_pm,tag,
      &                comm_all,reqs(3),ierr)
 c
-      call MPI_Irecv (a(:,:,n3),lbuf,ntype_real,iproc_pp,tag,
+      call MPI_Irecv (rbuf32,lbuf,ntype_real,iproc_pp,tag,
      &                comm_all,reqs(4),ierr)
 c
       call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
+!$omp target update to(rbuf31,rbuf32)
+c
+      do concurrent (j=1:n2, i=1:n1)
+        a(i,j, 1)=rbuf31(i,j)
+        a(i,j,n3)=rbuf32(i,j)
+      enddo
+c
+!$omp target exit data map(delete:sbuf31,sbuf32,rbuf31,rbuf32)
 c
 c ****** Seam the first dimension.
 c
       if (nproc_r.gt.1) then
 c
+!$omp target enter data map(alloc:sbuf11,sbuf12,rbuf11,rbuf12)
 c
         lbuf=n2*n3
 c
@@ -5639,6 +5700,7 @@ c
           sbuf12(i,j)=a(   2,i,j)
         enddo
 c
+!$omp target update from(sbuf11,sbuf12)
         call MPI_Isend (sbuf11,lbuf,ntype_real,iproc_rp,tag,
      &                  comm_all,reqs(1),ierr)
 c
@@ -5652,6 +5714,7 @@ c
      &                  comm_all,reqs(4),ierr)
 c
         call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
+!$omp target update to(rbuf11,rbuf12)
 c
         if (iproc_rm.ne.MPI_PROC_NULL) then
           do concurrent (j=1:n3, i=1:n2)
@@ -5665,12 +5728,14 @@ c
           enddo
         end if
 c
+!$omp target exit data map(delete:sbuf11,sbuf12,rbuf11,rbuf12)
       end if
 c
 c ****** Seam the second dimension.
 c
       if (nproc_t.gt.1) then
 c
+!$omp target enter data map(alloc:sbuf21,sbuf22,rbuf21,rbuf22)
 c
         lbuf=n1*n3
 c
@@ -5679,6 +5744,7 @@ c
           sbuf22(i,j)=a(i,   2,j)
         enddo
 c
+!$omp target update from(sbuf21,sbuf22)
         call MPI_Isend (sbuf21,lbuf,ntype_real,iproc_tp,tag,
      &                  comm_all,reqs(1),ierr)
 c
@@ -5692,6 +5758,7 @@ c
      &                  comm_all,reqs(4),ierr)
 c
         call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
+!$omp target update to(rbuf21,rbuf22)
 c
         if (iproc_tm.ne.MPI_PROC_NULL) then
           do concurrent (j=1:n3, i=1:n1)
@@ -5705,6 +5772,7 @@ c
           enddo
         end if
 c
+!$omp target exit data map(delete:sbuf21,sbuf22,rbuf21,rbuf22)
       end if
 c
       call timer_off (c_seam)
@@ -5756,6 +5824,7 @@ c
 c ****** Potential.
 c
       if (phifile.ne.'') then
+!$omp target update from(phi)
 c
 c ****** Allocate the global array PHI_G (on processor IPROC0).
 c
@@ -5789,6 +5858,7 @@ c
 c ****** Br.
 c
       if (brfile.ne.'') then
+!$omp target update from(br)
 c
         fname=brfile
 c
@@ -5818,6 +5888,7 @@ c
 c ****** Bt.
 c
       if (btfile.ne.'') then
+!$omp target update from(bt)
 c
         fname=btfile
 c
@@ -5848,6 +5919,7 @@ c
 c ****** Bp.
 c
       if (bpfile.ne.'') then
+!$omp target update from(bp)
 c
         fname=bpfile
 c
@@ -5906,6 +5978,8 @@ c
       integer :: i,j,k
 c
 c-----------------------------------------------------------------------
+c
+!$omp target enter data map(alloc:br,bt,bp)
 c
 c ****** Get Br.
 c
@@ -5973,14 +6047,19 @@ c
       wr=0.
       wt=0.
       wp=0.
-      do concurrent (i=2:nrm1,j=2:ntm1,k=2:npm1) reduce(+:wr,wt,wp)
-        dv=rh(i)**2*drh(i)*dth(j)*sth(j)*dph(k)
-        brav=half*(br(i,j,k)+br(i-1,j,k))
-        btav=half*(bt(i,j,k)+bt(i,j-1,k))
-        bpav=half*(bp(i,j,k)+bp(i,j,k-1))
-        wr=wr+half*brav**2*dv
-        wt=wt+half*btav**2*dv
-        wp=wp+half*bpav**2*dv
+!$omp target teams loop collapse(3) reduction(+:wr,wt,wp)
+      do k=2,npm1
+        do j=2,ntm1
+          do i=2,nrm1
+            dv=rh(i)**2*drh(i)*dth(j)*sth(j)*dph(k)
+            brav=half*(br(i,j,k)+br(i-1,j,k))
+            btav=half*(bt(i,j,k)+bt(i,j-1,k))
+            bpav=half*(bp(i,j,k)+bp(i,j,k-1))
+            wr=wr+half*brav**2*dv
+            wt=wt+half*btav**2*dv
+            wp=wp+half*bpav**2*dv
+          enddo
+        enddo
       enddo
 c
 c ****** Sum up all processors into final values and print.
@@ -6966,5 +7045,18 @@ c
 c       - Replaced OpenACC with OpenMP Target directives.
 c         There remains a single OpenACC directive for device selection
 c         in order to work with nvfortran.
+c
+c ### Version 4.2.1, 09/19/2024, modified by RC:
+c
+c       - Changed array reduction loops to use 
+c         OpenMP reductions instead of atomics.
+c       - Updated OpenMP target directives to use the 
+c         more streamlined "loop" syntax.
+c
+c ### Version 4.2.2, 12/05/2024, modified by RC:
+c
+c       - Fixed bug with OpenMP target loops.
+c         Was using 'target loop' instead of 'target teams loop'
+c         nvfortran seemed to allow this, but ifx does not.
 c
 c#######################################################################
