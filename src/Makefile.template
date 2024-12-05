@@ -29,7 +29,7 @@ all: $(OBJS)
 	rm -f *.mod *.o 2>/dev/null
 
 clean:
-	rm -f *.mod *.o pot3d_cpp.f 2>/dev/null
+	rm -f *.mod *.modmic *.o pot3d_cpp.f 2>/dev/null
 	rm pot3d 2>/dev/null
 
 pot3d_cpp.f: pot3d.F
