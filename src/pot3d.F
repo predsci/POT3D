@@ -52,8 +52,8 @@ c ****** Code name.
 c-----------------------------------------------------------------------
 c
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.2.1'
-      character(*), parameter :: update='09/19/2024'
+      character(*), parameter :: vers  ='4.2.2'
+      character(*), parameter :: update='12/05/2024'
 c
       end module
 c#######################################################################
@@ -5542,7 +5542,7 @@ c-----------------------------------------------------------------------
 c
       cgdot=0.
 c
-!$omp target loop reduction(+:cgdot)
+!$omp target teams loop reduction(+:cgdot)
       do i=1,N
         cgdot=cgdot+x(i)*y(i)
       enddo
@@ -6030,7 +6030,7 @@ c
       wr=0.
       wt=0.
       wp=0.
-!$omp target loop collapse(3) reduction(+:wr,wt,wp)
+!$omp target teams loop collapse(3) reduction(+:wr,wt,wp)
       do k=2,npm1
         do j=2,ntm1
           do i=2,nrm1
@@ -7035,5 +7035,11 @@ c       - Changed array reduction loops to use
 c         OpenMP reductions instead of atomics.
 c       - Updated OpenMP target directives to use the 
 c         more streamlined "loop" syntax.
+c
+c ### Version 4.2.2, 12/05/2024, modified by RC:
+c
+c       - Fixed bug with OpenMP target loops.
+c         Was using 'target loop' instead of 'target teams loop'
+c         nvfortran seemed to allow this, but ifx does not.
 c
 c#######################################################################
