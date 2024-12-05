@@ -1,7 +1,10 @@
 #!/bin/bash
 
 rm testsuite/validation/run/* 2>/dev/null
-touch testsuite/validation/run/empty
+rm testsuite/isc2023/run/* 2>/dev/null
+rm testsuite/small/run/* 2>/dev/null
+rm testsuite/medium/run/* 2>/dev/null
+rm testsuite/large/run/* 2>/dev/null
 rm bin/pot3d 2>/dev/null
 
 cd src/
