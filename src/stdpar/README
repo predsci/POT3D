@@ -1,10 +1,11 @@
-This version of the code has ZERO OpenACC directives.
+This version of the code has no directives other than device selection.
 
 It requires Fortran 2023 standard as it uses "reduce" on 
 do concurrent loops.
 
-In order to run this on more than one GPU, you must launch it 
-in a special way.
+To make a "pure Fortran" version of the code, one can remove the two 
+device selection directives.  If they are removed, in order to run
+on more than one GPU, it must be launched in a special way.
 
 An example of a launch script to do this is below:
 
