@@ -1,0 +1,60 @@
+name : CI
+
+on:
+  push:
+    branches:
+      - build_pot3d_unmodified
+  pull_request:
+    # workflow till be triggered on PR's against 'lf4' branch
+    # this is subject to change
+    branches:
+      - build_pot3d_unmodified
+
+env:
+  MACOSX_DEPLOYMENT_TARGET: 14.0
+
+jobs:
+  Compile_POT3D_with_GFortran:
+    name: "Build POT3D and validate"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["macos-latest"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mamba-org/setup-micromamba@v2.0.2
+        with:
+          micromamba-version: '2.0.4-0'
+          environment-file: ci/environment.yml
+
+      - name: Verify Environment
+        shell: bash -e -x -l {0}
+        run: |
+          echo "Active Environment: $MAMBA_DEFAULT_ENV"
+          which gfortran
+          which mpif90
+
+      - name: Install HDF5 via Homebrew
+        shell: bash -e -x -l {0}
+        run: |
+          # Install Homebrew if not already installed
+          if ! command -v brew &> /dev/null
+          then
+            echo "Homebrew not found, installing..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+
+          brew install hdf5
+          ls /opt/homebrew/lib | grep hdf5
+
+      - name: POT3D build
+        shell: bash -e -x -l {0}
+        run: |
+          ./build_examples/build_cpu_mpi-only_gcc_macos_homebrew_lf.sh
+          export PATH=$PWD/bin:$PATH
+
+      - name: POT3D validation
+        shell: bash -e -x -l {0}
+        run: |
+          ./validate.sh

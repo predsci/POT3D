@@ -1,0 +1,7 @@
+name: build_pot3d_unmodified_env
+channels:
+  - conda-forge
+dependencies:
+  # GFortran version 14 isn't available on conda for macOS atleast
+  - gfortran=13.2.0
+  - openmpi=5.0.6
