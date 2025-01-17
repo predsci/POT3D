@@ -16,6 +16,10 @@ echo " "
 
 #Validate run:
 ${POT3D_HOME}/scripts/pot3d_validation.sh pot3d.out ${POT3D_HOME}/testsuite/${TEST}/validation/pot3d.out
+if [ $? -ne 0 ]; then
+  echo "Validation failed for 1 MPI rank. Exiting..."
+  exit 1
+fi
 
 rm pot3d.log pot3d.out timing.out
 echo " "
@@ -29,5 +33,9 @@ echo " "
 
 #Validate run:
 ${POT3D_HOME}/scripts/pot3d_validation.sh pot3d.out ${POT3D_HOME}/testsuite/${TEST}/validation/pot3d.out
+if [ $? -ne 0 ]; then
+  echo "Validation failed for 1 MPI rank. Exiting..."
+  exit 1
+fi
 echo " "
 
