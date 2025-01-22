@@ -3,12 +3,10 @@ name : CI
 on:
   push:
     branches:
-      - build_pot3d_unmodified
+      - build_pot3d_with_mpi_internal
   pull_request:
-    # workflow till be triggered on PR's against 'lf4' branch
-    # this is subject to change
     branches:
-      - build_pot3d_unmodified
+      - build_pot3d_with_mpi_internal
 
 env:
   MACOSX_DEPLOYMENT_TARGET: 14.0
