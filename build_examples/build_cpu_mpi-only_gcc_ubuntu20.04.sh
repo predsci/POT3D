@@ -20,6 +20,7 @@
 #################################################################
 
 FC=mpif90
+MPICC=mpicc
 
 #################################################################
 # Please set the location of the HDF5 include & library files. 
@@ -79,6 +80,7 @@ fi
 ${echo} "==> Generating Makefile from Makefile.template..."
 sed \
   -e "s#<FC>#${FC}#g" \
+  -e "s#<MPICC>#${MPICC}#g" \
   -e "s#<FFLAGS>#${FFLAGS}#g" \
   -e "s#<CCFLAGS>#${CCFLAGS}#g" \
   -e "s#<POT3D_CUSPARSE>#${POT3D_CUSPARSE}#g" \
