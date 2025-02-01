@@ -89,15 +89,17 @@ module mpi_c_bindings
         subroutine c_mpi_allreduce_scalar(sendbuf, recvbuf, count, datatype, op, comm, ierror) bind(C, name="mpi_allreduce_wrapper")
             use iso_c_binding, only: c_int, c_double
             real(c_double), intent(in) :: sendbuf
-            real(c_double), intent(in) :: recvbuf
-            integer(c_int) :: count, datatype, op, comm, ierror
+            real(c_double), intent(out) :: recvbuf
+            integer(c_int), intent(in) :: count, datatype, op, comm
+            integer(c_int), intent(out), optional :: ierror
         end subroutine
 
         subroutine c_mpi_allreduce_1d(sendbuf, recvbuf, count, datatype, op, comm, ierror) bind(C, name="mpi_allreduce_wrapper")
             use iso_c_binding, only: c_int, c_double
             real(c_double), intent(in) :: sendbuf
-            real(c_double), dimension(*), intent(in) :: recvbuf
-            integer(c_int) :: count, datatype, op, comm, ierror
+            real(c_double), dimension(*), intent(out) :: recvbuf
+            integer(c_int), intent(in) :: count, datatype, op, comm
+            integer(c_int), intent(out), optional :: ierror
         end subroutine
 
         function c_mpi_wtime() result(time) bind(C, name="mpi_wtime_wrapper")
@@ -107,7 +109,8 @@ module mpi_c_bindings
 
         subroutine c_mpi_barrier(comm, ierror) bind(C, name="mpi_barrier_wrapper")
             use iso_c_binding, only: c_int
-            integer(c_int) :: comm, ierror
+            integer(c_int), intent(in) :: comm
+            integer(c_int), intent(out), optional :: ierror
         end subroutine
 
         subroutine c_mpi_comm_rank(comm, rank, ierror) bind(C, name="mpi_comm_rank_wrapper")

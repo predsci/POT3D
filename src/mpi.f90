@@ -250,16 +250,18 @@ module mpi
     subroutine MPI_Allreduce_scalar(sendbuf, recvbuf, count, datatype, op, comm, ierror)
         use mpi_c_bindings, only: c_mpi_allreduce_scalar
         real(8), intent(in) :: sendbuf
-        real(8), intent(in) :: recvbuf
-        integer :: count, datatype, op, comm, ierror
+        real(8), intent(out) :: recvbuf
+        integer, intent(in) :: count, datatype, op, comm
+        integer, intent(out), optional :: ierror
         call c_mpi_allreduce_scalar(sendbuf, recvbuf, count, datatype, op, comm, ierror)
     end subroutine
 
     subroutine MPI_Allreduce_1d(sendbuf, recvbuf, count, datatype, op, comm, ierror)
         use mpi_c_bindings, only: c_mpi_allreduce_1d
         real(8), intent(in) :: sendbuf
-        real(8), dimension(:), intent(in) :: recvbuf
-        integer :: count, datatype, op, comm, ierror
+        real(8), dimension(:), intent(out) :: recvbuf
+        integer, intent(in) :: count, datatype, op, comm
+        integer, intent(out), optional :: ierror
         call c_mpi_allreduce_1d(sendbuf, recvbuf, count, datatype, op, comm, ierror)
     end subroutine
 
@@ -271,7 +273,8 @@ module mpi
 
     subroutine MPI_Barrier_proc(comm, ierror)
         use mpi_c_bindings, only: c_mpi_barrier
-        integer :: comm, ierror
+        integer, intent(in) :: comm
+        integer, intent(out), optional :: ierror
         call c_mpi_barrier(comm, ierror)
     end subroutine
 
