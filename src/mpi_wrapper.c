@@ -162,7 +162,7 @@ void mpi_irecv_wrapper(double *buf, int *count, int *datatype_f,
             return;
     }
 
-    MPI_Request request = MPI_Request_f2c(*request_f);
+    MPI_Request request;
     *ierror = MPI_Irecv(buf, *count, datatype, *source, *tag, comm, &request);
     *request_f = MPI_Request_c2f(request);
 }

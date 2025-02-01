@@ -78,7 +78,7 @@ module mpi_c_bindings
 
         subroutine c_mpi_irecv(buf, count, datatype, source, tag, comm, request, ierror) bind(C, name="mpi_irecv_wrapper")
             use iso_c_binding, only: c_int, c_double
-            real(c_double), dimension(..) :: buf
+            real(c_double), dimension(*) :: buf
             integer(c_int), intent(in) :: count, source, tag
             integer(c_int), intent(in) :: datatype
             integer(c_int), intent(in) :: comm
