@@ -3,10 +3,10 @@ name : CI
 on:
   push:
     branches:
-      - build_pot3d_with_mpi_internal
+      - build_pot3d_custom_mpi_wrappers
   pull_request:
     branches:
-      - build_pot3d_with_mpi_internal
+      - build_pot3d_custom_mpi_wrappers
 
 env:
   MACOSX_DEPLOYMENT_TARGET: 14.0
