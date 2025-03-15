@@ -647,6 +647,7 @@ program POT3D
       use vars
       use solve_params
       use timing
+      use ffopen_MOD
 !
 !-----------------------------------------------------------------------
 !
@@ -6539,6 +6540,7 @@ subroutine write_timing
       use number_types
       use mpidefs
       use timing
+      use ffopen_MOD
 !
 !-----------------------------------------------------------------------
 !
@@ -6697,7 +6699,7 @@ subroutine readbr (fname,br0_g,ierr)
       use global_dims
       use global_mesh
       use vars
-      use rdhdf_2d_interface
+      use rdhdf_2d_MOD
 !
 !-----------------------------------------------------------------------
 !

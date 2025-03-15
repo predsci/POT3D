@@ -113,6 +113,8 @@ module rdhdf_3d_interface
       end interface
 end module
 !#######################################################################
+module ffopen_MOD
+      contains
 subroutine ffopen (iun,fname,mode,ierr)
 !
 !-----------------------------------------------------------------------
@@ -180,109 +182,10 @@ subroutine ffopen (iun,fname,mode,ierr)
       ierr=1
 !
 end subroutine
+end module ffopen_MOD
 !#######################################################################
-subroutine rdhdf (fname,s,ierr)
-!
-!-----------------------------------------------------------------------
-!
-! ****** Read a 1D, 2D, or 3D scientific data set from an HDF file.
-! ****** This routine uses the new SD API instead of the
-! ****** outdated DFSD API.
-!
-!-----------------------------------------------------------------------
-!
-! ****** This routine allocates the required memory and returns
-! ****** pointers to the data and scale arrays.
-!
-!-----------------------------------------------------------------------
-!
-! ****** Input arguments:
-!
-!          FNAME   : [character(*)]
-!                    HDF data file name to read from.
-!
-! ****** Output arguments:
-!
-!          S       : [structure of type SDS]
-!                    A structure that holds the field, its
-!                    dimensions, and the scales, with the
-!                    components described below.
-!
-!          IERR    : [integer]
-!                    IERR=0 is returned if the data set was read
-!                    successfully.  Otherwise, IERR is set to a
-!                    nonzero value.
-!
-! ****** Components of structure S:
-!
-!          NDIM    : [integer]
-!                    Number of dimensions found in the data set.
-!
-!          DIMS    : [integer, dimension(3)]
-!                    Number of points in the data set dimensions.
-!                    For a 1D data set, DIMS(2)=DIMS(3)=1.
-!                    For a 2D data set, DIMS(3)=1.
-!
-!          SCALE   : [logical]
-!                    Flag to indicate the presence of scales (axes)
-!                    in the data set.  SCALE=.false. means that scales
-!                    were not found; SCALE=.true. means that scales
-!                    were found.
-!
-!          HDF32   : [logical]
-!                    Flag to indicate the precision of the data set
-!                    read in.  HDF32=.true. means that the data is
-!                    32-bit; HDF32=.false. means that the data is
-!                    64-bit.
-!
-!          SCALES  : [structure of type RP1D, dimension(3)]
-!                    This array holds the pointers to the scales
-!                    when SCALE=.true., and is undefined otherwise.
-!
-!          F       : [real, pointer to a rank-3 array]
-!                    This array holds the data set values.
-!
-! ****** The storage for the arrays pointed to by F, and the
-! ****** scales (if present) in structure SCALES, is allocated by
-! ****** this routine.
-!
-!-----------------------------------------------------------------------
-!
-      use sds_def
-!
-!-----------------------------------------------------------------------
-!
-      implicit none
-!
-!-----------------------------------------------------------------------
-!
-      character(*) :: fname
-      character, dimension(256) :: sds_name, dim_name
-      type(sds) :: s
-      integer :: ierr,i,i_bin
-      intent(in) :: fname
-      intent(out) :: s,ierr
-!
-!-----------------------------------------------------------------------
-!
-      ierr=0
-!
-!-----------------------------------------------------------------------
-!
-! ****** Read hdf5 file if fname ends in '.h5'.
-!
-      i=index(fname,'.h');
-      i_bin=index(fname,'.bin')
-      if ((i == 0 .and. i_bin /= 0) .or. fname(i+1:i+2).eq.'h5') then
-        call rdh5 (fname,s,ierr)
-        return
-      else
-        print*,"HDF4 has been disabled"
-        ierr=-1
-      end if
-!
-end subroutine
-!#######################################################################
+module rdh5_MOD
+contains
 subroutine rdh5 (fname,s,ierr)
 !
 !-----------------------------------------------------------------------
@@ -707,7 +610,116 @@ subroutine rdh5 (fname,s,ierr)
       ! call h5close_f (ierr)
 !
 end subroutine
+end module rdh5_MOD
 !#######################################################################
+module rdhdf_MOD
+contains
+subroutine rdhdf (fname,s,ierr)
+!
+!-----------------------------------------------------------------------
+!
+! ****** Read a 1D, 2D, or 3D scientific data set from an HDF file.
+! ****** This routine uses the new SD API instead of the
+! ****** outdated DFSD API.
+!
+!-----------------------------------------------------------------------
+!
+! ****** This routine allocates the required memory and returns
+! ****** pointers to the data and scale arrays.
+!
+!-----------------------------------------------------------------------
+!
+! ****** Input arguments:
+!
+!          FNAME   : [character(*)]
+!                    HDF data file name to read from.
+!
+! ****** Output arguments:
+!
+!          S       : [structure of type SDS]
+!                    A structure that holds the field, its
+!                    dimensions, and the scales, with the
+!                    components described below.
+!
+!          IERR    : [integer]
+!                    IERR=0 is returned if the data set was read
+!                    successfully.  Otherwise, IERR is set to a
+!                    nonzero value.
+!
+! ****** Components of structure S:
+!
+!          NDIM    : [integer]
+!                    Number of dimensions found in the data set.
+!
+!          DIMS    : [integer, dimension(3)]
+!                    Number of points in the data set dimensions.
+!                    For a 1D data set, DIMS(2)=DIMS(3)=1.
+!                    For a 2D data set, DIMS(3)=1.
+!
+!          SCALE   : [logical]
+!                    Flag to indicate the presence of scales (axes)
+!                    in the data set.  SCALE=.false. means that scales
+!                    were not found; SCALE=.true. means that scales
+!                    were found.
+!
+!          HDF32   : [logical]
+!                    Flag to indicate the precision of the data set
+!                    read in.  HDF32=.true. means that the data is
+!                    32-bit; HDF32=.false. means that the data is
+!                    64-bit.
+!
+!          SCALES  : [structure of type RP1D, dimension(3)]
+!                    This array holds the pointers to the scales
+!                    when SCALE=.true., and is undefined otherwise.
+!
+!          F       : [real, pointer to a rank-3 array]
+!                    This array holds the data set values.
+!
+! ****** The storage for the arrays pointed to by F, and the
+! ****** scales (if present) in structure SCALES, is allocated by
+! ****** this routine.
+!
+!-----------------------------------------------------------------------
+!
+      use sds_def
+      use rdh5_MOD
+!
+!-----------------------------------------------------------------------
+!
+      implicit none
+!
+!-----------------------------------------------------------------------
+!
+      character(*) :: fname
+      character, dimension(256) :: sds_name, dim_name
+      type(sds) :: s
+      integer :: ierr,i,i_bin
+      intent(in) :: fname
+      intent(out) :: s,ierr
+!
+!-----------------------------------------------------------------------
+!
+      ierr=0
+!
+!-----------------------------------------------------------------------
+!
+! ****** Read hdf5 file if fname ends in '.h5'.
+!
+      i=index(fname,'.h');
+      i_bin=index(fname,'.bin')
+      if ((i == 0 .and. i_bin /= 0) .or. fname(i+1:i+2).eq.'h5') then
+        call rdh5 (fname,s,ierr)
+        return
+      else
+        print*,"HDF4 has been disabled"
+        ierr=-1
+      end if
+!
+end subroutine
+end module rdhdf_MOD
+!#######################################################################
+module wrhdf_MOD
+      contains
 subroutine wrhdf (fname,s,ierr)
 !
 !-----------------------------------------------------------------------
@@ -811,6 +823,7 @@ subroutine wrhdf (fname,s,ierr)
       end if
 !
 end subroutine
+end module wrhdf_MOD
 
 ! [XX: HDF5 file write]
 !#######################################################################
@@ -1011,6 +1024,8 @@ end subroutine
 ! !
 ! end subroutine
 !#######################################################################
+module rdhdf_1d_MOD
+      contains
 subroutine rdhdf_1d (fname,scale,nx,f,x,ierr)
 !
 !-----------------------------------------------------------------------
@@ -1025,6 +1040,7 @@ subroutine rdhdf_1d (fname,scale,nx,f,x,ierr)
 !
       use iso_fortran_env
       use sds_def
+      use rdhdf_MOD
 !
 !-----------------------------------------------------------------------
 !
@@ -1079,7 +1095,10 @@ subroutine rdhdf_1d (fname,scale,nx,f,x,ierr)
       deallocate (s%f)
 !
 end subroutine
+end module rdhdf_1d_MOD
 !#######################################################################
+module rdhdf_2d_MOD
+      contains
 subroutine rdhdf_2d (fname,scale,nx,ny,f,x,y,ierr)
 !
 !-----------------------------------------------------------------------
@@ -1094,6 +1113,7 @@ subroutine rdhdf_2d (fname,scale,nx,ny,f,x,y,ierr)
 !
       use iso_fortran_env
       use sds_def
+      use rdhdf_MOD
 !
 !-----------------------------------------------------------------------
 !
@@ -1149,7 +1169,10 @@ subroutine rdhdf_2d (fname,scale,nx,ny,f,x,y,ierr)
       deallocate (s%f)
 !
 end subroutine
+end module rdhdf_2d_MOD
 !#######################################################################
+module rdhdf_3d_MOD
+      contains
 subroutine rdhdf_3d (fname,scale,nx,ny,nz,f,x,y,z,ierr)
 !
 !-----------------------------------------------------------------------
@@ -1164,6 +1187,7 @@ subroutine rdhdf_3d (fname,scale,nx,ny,nz,f,x,y,z,ierr)
 !
       use iso_fortran_env
       use sds_def
+      use rdhdf_MOD
 !
 !-----------------------------------------------------------------------
 !
@@ -1217,7 +1241,10 @@ subroutine rdhdf_3d (fname,scale,nx,ny,nz,f,x,y,z,ierr)
       f=>s%f
 !
 end subroutine
+end module rdhdf_3d_MOD
 !#######################################################################
+module wrhdf_1d_MOD
+      contains
 subroutine wrhdf_1d (fname,scale,nx,f,x,hdf32,ierr)
 !
 !-----------------------------------------------------------------------
@@ -1232,6 +1259,7 @@ subroutine wrhdf_1d (fname,scale,nx,f,x,hdf32,ierr)
 !
       use iso_fortran_env
       use sds_def
+      use wrhdf_MOD
 !
 !-----------------------------------------------------------------------
 !
@@ -1287,7 +1315,10 @@ subroutine wrhdf_1d (fname,scale,nx,f,x,hdf32,ierr)
       end if
 !
 end subroutine
+end module wrhdf_1d_MOD
 !#######################################################################
+module wrhdf_2d_MOD
+      contains
 subroutine wrhdf_2d (fname,scale,nx,ny,f,x,y,hdf32,ierr)
 !
 !-----------------------------------------------------------------------
@@ -1302,6 +1333,7 @@ subroutine wrhdf_2d (fname,scale,nx,ny,f,x,y,hdf32,ierr)
 !
       use iso_fortran_env
       use sds_def
+      use wrhdf_MOD
 !
 !-----------------------------------------------------------------------
 !
@@ -1359,7 +1391,10 @@ subroutine wrhdf_2d (fname,scale,nx,ny,f,x,y,hdf32,ierr)
       end if
 !
 end subroutine
+end module wrhdf_2d_MOD
 !#######################################################################
+module wrhdf_3d_MOD
+      contains
 subroutine wrhdf_3d (fname,scale,nx,ny,nz,f,x,y,z,hdf32,ierr)
 !
 !-----------------------------------------------------------------------
@@ -1374,6 +1409,7 @@ subroutine wrhdf_3d (fname,scale,nx,ny,nz,f,x,y,z,hdf32,ierr)
 !
       use iso_fortran_env
       use sds_def
+      use wrhdf_MOD
 !
 !-----------------------------------------------------------------------
 !
@@ -1433,7 +1469,10 @@ subroutine wrhdf_3d (fname,scale,nx,ny,nz,f,x,y,z,hdf32,ierr)
       end if
 !
 end subroutine
+end module wrhdf_3d_MOD
 !#######################################################################
+module deallocate_sds_MOD
+      contains
 subroutine deallocate_sds (s)
 !
 !-----------------------------------------------------------------------
@@ -1461,4 +1500,5 @@ subroutine deallocate_sds (s)
       if (associated(s%scales(3)%f)) deallocate (s%scales(3)%f)
 !
 end subroutine
+end module deallocate_sds_MOD
 !
