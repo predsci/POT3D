@@ -17,7 +17,7 @@
   dpratio=1.0
   nfpmesh=0
   phishift=0.
-  br0file='br_input_tiny.h5'
+  br0file='br_input_tiny_bin.bin'
   phifile=''
   brfile=''
   btfile=''

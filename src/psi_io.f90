@@ -259,7 +259,7 @@ subroutine rdhdf (fname,s,ierr)
       character(*) :: fname
       character, dimension(256) :: sds_name, dim_name
       type(sds) :: s
-      integer :: ierr,i
+      integer :: ierr,i,i_bin
       intent(in) :: fname
       intent(out) :: s,ierr
 !
@@ -272,7 +272,8 @@ subroutine rdhdf (fname,s,ierr)
 ! ****** Read hdf5 file if fname ends in '.h5'.
 !
       i=index(fname,'.h');
-      if (fname(i+1:i+2).eq.'h5') then
+      i_bin=index(fname,'.bin')
+      if ((i == 0 .and. i_bin /= 0) .or. fname(i+1:i+2).eq.'h5') then
         call rdh5 (fname,s,ierr)
         return
       else
@@ -352,8 +353,8 @@ subroutine rdh5 (fname,s,ierr)
 !
       use iso_fortran_env
       use sds_def
-      use hdf5
-      use h5ds
+      ! use hdf5
+      ! use h5ds
 !
 !-----------------------------------------------------------------------
 !
@@ -372,16 +373,30 @@ subroutine rdh5 (fname,s,ierr)
 !
       integer :: i,j,k,n_members,obj_type
 !
-      integer(HID_T) :: file_id       ! File identifier
-      integer(HID_T) :: dset_id       ! Dataset identifier
-      integer(HID_T) :: dspace_id     ! Dataspace identifier
-      integer(HID_T) :: dim_id        ! Dimension identifiers
-      integer(HID_T) :: datatype_id   ! Datatype identifiers
+      ! [XX: Binary file read]
+      integer :: file_unit = 10
+      ! [XX: HDF5 file read]
+      ! integer(HID_T) :: file_id       ! File identifier
+      ! [XX: HDF5 file read]
+      ! integer(HID_T) :: dset_id       ! Dataset identifier
+      ! [XX: HDF5 file read]
+      ! integer(HID_T) :: dspace_id     ! Dataspace identifier
+      ! [XX: HDF5 file read]
+      ! integer(HID_T) :: dim_id        ! Dimension identifiers
+      ! [XX: HDF5 file read]
+      ! integer(HID_T) :: datatype_id   ! Datatype identifiers
 !
-      integer(SIZE_T) :: prec
+      ! integer(SIZE_T) :: prec
+      integer :: prec
 !
-      integer(HSIZE_T),dimension(:), allocatable :: s_dims,maxpts
-      integer(HSIZE_T),dimension(1) :: s_dims_i
+      ! [XX: HDF5 file read]
+      ! integer(HSIZE_T),dimension(:), allocatable :: s_dims,maxpts
+      ! [XX: Binary file read]
+      integer, dimension(:), allocatable :: s_dims_bin, maxpts_bin
+      ! [XX: HDF5 file read]
+      ! integer(HSIZE_T),dimension(1) :: s_dims_i
+      ! [XX: Binary file read]
+      integer, dimension(1) :: s_dims_i_bin
 !
       real(REAL32), dimension(:,:,:), allocatable :: f4
       real(REAL32), dimension(:),     allocatable :: f4dim
@@ -402,15 +417,22 @@ subroutine rdh5 (fname,s,ierr)
 !
 ! ****** Initialize hdf5 interface.
 !
-      call h5open_f (ierr)
+      ! [XX: HDF5 file read]
+      ! call h5open_f (ierr)
 !
 ! ****** Open hdf5 file.
 !
-      call h5Fopen_f (trim(fname),H5F_ACC_RDONLY_F,file_id,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5Fopen_f (trim(fname),H5F_ACC_RDONLY_F,file_id,ierr)
+      ! [XX: Binary file read]
+      open(unit=file_unit, file=trim(fname), form='unformatted', access='stream', status='old', iostat=ierr)
 !
 ! ****** Get information about the hdf5 file.
 !
-      call h5Gn_members_f (file_id,"/",n_members,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5Gn_members_f (file_id,"/",n_members,ierr)
+      ! [XX: Binary file read]
+      n_members = 3
 !
 ! ****** Make sure there is (at maximum) one 3D dataset with scales.
 !
@@ -424,15 +446,22 @@ subroutine rdh5 (fname,s,ierr)
 !
 ! ****** Assume the Dataset is in index 0 and get its name.
 !
-      call h5Gget_obj_info_idx_f (file_id,"/",0,obj_name,obj_type,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5Gget_obj_info_idx_f (file_id,"/",0,obj_name,obj_type,ierr)
 !
 ! ****** Open Dataset.
 !
-      call h5Dopen_f (file_id,trim(obj_name),dset_id,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5Dopen_f (file_id,trim(obj_name),dset_id,ierr)
+      ! [XX: Binary file read]
+      obj_name = "Data"
 !
 ! ****** Make sure the Dataset is not a scale.
 !
-      call h5DSis_scale_f(dset_id,is_scale,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5DSis_scale_f(dset_id,is_scale,ierr)
+      ! [XX: Binary file read]
+      is_scale = .false.
       if (is_scale) then
         write (*,*)
         write (*,*) '### ERROR in ',cname,':'
@@ -443,23 +472,46 @@ subroutine rdh5 (fname,s,ierr)
 !
 ! ****** Get dimensions (need s_dims array for format requirements).
 !
-      call h5Dget_space_f (dset_id,dspace_id,ierr)
-      call h5Sget_simple_extent_ndims_f (dspace_id,s%ndim,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5Dget_space_f (dset_id,dspace_id,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5Sget_simple_extent_ndims_f (dspace_id,s%ndim,ierr)
+      ! [XX: Binary file read]
+      s%ndim = 2
 !
-      allocate(s_dims(s%ndim))
+      ! [XX: HDF5 file read]
+      ! allocate(s_dims(s%ndim))
+      ! [XX: Binary file read]
+      allocate(s_dims_bin(s%ndim))
 !
-      allocate(maxpts(s%ndim))
-      call h5Sget_simple_extent_dims_f (dspace_id,s_dims,maxpts,ierr)
-      deallocate(maxpts)
+      ! [XX: HDF5 file read]
+      ! allocate(maxpts(s%ndim))
+      ! [XX: Binary file read]
+      allocate(maxpts_bin(s%ndim))
+      ! [XX: HDF5 file read]
+      ! call h5Sget_simple_extent_dims_f (dspace_id,s_dims,maxpts,ierr)
+      ! [XX: Binary file read]
+      s_dims_bin = [181, 451]
+      ! [XX: Binary file read]
+      maxpts_bin = [181, 451]
+      ! [XX: Binary file read]
+      deallocate(maxpts_bin)
 !
       do j=1,s%ndim
-        s%dims(j) = INT(s_dims(j))
+        ! [XX: HDF5 file read]
+        ! s%dims(j) = INT(s_dims(j))
+        ! [XX: Binary file read]
+        s%dims(j) = INT(s_dims_bin(j))
       end do
 !
 ! ****** Get the floating-point precision of the data and set flag.
 !
-      call h5Dget_type_f (dset_id,datatype_id,ierr)
-      call h5Tget_precision_f (datatype_id,prec,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5Dget_type_f (dset_id,datatype_id,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5Tget_precision_f (datatype_id,prec,ierr)
+      ! [XX: Binary file read]
+      prec = 32
 !
       if (prec.eq.32) then
         s%hdf32=.true.
@@ -476,7 +528,10 @@ subroutine rdh5 (fname,s,ierr)
 !
       if (s%hdf32) then
         allocate (f4(s%dims(1),s%dims(2),s%dims(3)))
-        call h5Dread_f (dset_id,datatype_id,f4,s_dims,ierr)
+        ! [XX: HDF5 file read]
+        ! call h5Dread_f (dset_id,datatype_id,f4,s_dims,ierr)
+        ! [XX: Binary file read]
+        read(file_unit, iostat=ierr) f4
         do k=1,s%dims(3)
           do j=1,s%dims(2)
             do i=1,s%dims(1)
@@ -487,7 +542,10 @@ subroutine rdh5 (fname,s,ierr)
         deallocate (f4)
       else
         allocate (f8(s%dims(1),s%dims(2),s%dims(3)))
-        call h5Dread_f (dset_id,datatype_id,f8,s_dims,ierr)
+        ! [XX: HDF5 file read]
+        ! call h5Dread_f (dset_id,datatype_id,f8,s_dims,ierr)
+        ! [XX: Binary file read]
+        read(file_unit, iostat=ierr) f8
         do k=1,s%dims(3)
           do j=1,s%dims(2)
             do i=1,s%dims(1)
@@ -498,7 +556,10 @@ subroutine rdh5 (fname,s,ierr)
         deallocate (f8)
       end if
 !
-      deallocate(s_dims)
+      ! [XX: HDF5 file read]
+      ! deallocate(s_dims)
+      ! [XX: Binary file read]
+      deallocate(s_dims_bin)
 !
       if (ierr.ne.0) then
         write (*,*)
@@ -512,7 +573,7 @@ subroutine rdh5 (fname,s,ierr)
 !
 ! ****** Close the hdf5 type descriptor.
 !
-      call h5Tclose_f (datatype_id,ierr)
+      ! call h5Tclose_f (datatype_id,ierr)
 !
 ! ****** Check if there might be scales present, if so, read them.
 !
@@ -536,16 +597,21 @@ subroutine rdh5 (fname,s,ierr)
 !
 ! ****** Get the name of scale dataset.
 !
-          call h5Gget_obj_info_idx_f (file_id,"/",i, &
-                                     obj_name,obj_type,ierr)
+      ! [XX: HDF5 file read]
+      !     call h5Gget_obj_info_idx_f (file_id,"/",i, &
+      !                                obj_name,obj_type,ierr)
 !
 ! ****** Open scale dataset.
 !
-          call h5Dopen_f (file_id,trim(obj_name),dim_id,ierr)
+      ! [XX: HDF5 file read]
+      !     call h5Dopen_f (file_id,trim(obj_name),dim_id,ierr)
 !
 ! ****** Make sure the scale is a scale.
 !
-          call h5DSis_scale_f (dim_id,is_scale,ierr)
+      ! [XX: HDF5 file read]
+      !     call h5DSis_scale_f (dim_id,is_scale,ierr)
+      ! [XX: Binary file read]
+          is_scale = .true.
           if (.not.is_scale) then
             write (*,*)
             write (*,*) '### ERROR in RDH5:'
@@ -556,29 +622,44 @@ subroutine rdh5 (fname,s,ierr)
 !
 ! ****** Get dimension of scale.
 !
-          s_dims_i = s%dims(i)
+          s_dims_i_bin = s%dims(i)
 !
 ! ****** Allocate scale.
 !
-          allocate (s%scales(i)%f(s_dims_i(1)))
+          allocate (s%scales(i)%f(s_dims_i_bin(1)))
 !
 ! ****** Get the floating-point precision of the scale.
 !
-          call h5Dget_type_f (dim_id,datatype_id,ierr)
-          call h5Tget_precision_f (datatype_id,prec,ierr)
+          ! [XX: HDF5 file read]
+          ! call h5Dget_type_f (dim_id,datatype_id,ierr)
+          ! [XX: HDF5 file read]
+          ! call h5Tget_precision_f (datatype_id,prec,ierr)
+          ! [XX: Binary file read]
+          prec = 32
 !
 ! ****** Read in the scale data.
 !
           if (prec.eq.32) then
-            allocate (f4dim(s_dims_i(1)))
-            call h5Dread_f (dim_id,datatype_id,f4dim,s_dims_i,ierr)
+            ! [XX: HDF5 file read]
+            ! allocate (f4dim(s_dims_i(1)))
+            ! [XX: Binary file read]
+            allocate (f4dim(s_dims_i_bin(1)))
+            ! [XX: HDF5 file read]
+            ! call h5Dread_f (dim_id,datatype_id,f4dim,s_dims_i,ierr)
+            ! [XX: Binary file read]
+            read(file_unit) f4dim
             do j=1,s%dims(i)
               s%scales(i)%f(j) = REAL(f4dim(j),REAL64)
             end do
             deallocate (f4dim)
           elseif (prec.eq.64) then
-            allocate (f8dim(s_dims_i(1)))
-            call h5Dread_f (dim_id,datatype_id,f8dim,s_dims_i,ierr)
+            ! [XX: HDF5 file read]
+            ! allocate (f8dim(s_dims_i(1)))
+            ! [XX: Binary file read]
+            allocate (f8dim(s_dims_i_bin(1)))
+            ! call h5Dread_f (dim_id,datatype_id,f8dim,s_dims_i,ierr)
+            ! [XX: Binary file read]
+            read(file_unit) f8dim
             do j=1,s%dims(i)
               s%scales(i)%f(j) = REAL(f8dim(j),REAL64)
             end do
@@ -587,7 +668,8 @@ subroutine rdh5 (fname,s,ierr)
 !
 ! ****** Close the scale dataset.
 !
-          call h5Dclose_f (dim_id,ierr)
+            ! [XX: HDF5 file read]
+      !     call h5Dclose_f (dim_id,ierr)
 !
         enddo
 !
@@ -611,15 +693,18 @@ subroutine rdh5 (fname,s,ierr)
 !
 ! ****** Close the dataset.
 !
-      call h5Dclose_f (dset_id,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5Dclose_f (dset_id,ierr)
 !
 ! ****** Close the file.
 !
-      call h5Fclose_f (file_id,ierr)
+      ! [XX: HDF5 file read]
+      ! call h5Fclose_f (file_id,ierr)
 !
 ! ****** Close FORTRAN interface.
 !
-      call h5close_f (ierr)
+      ! [XX: HDF5 file read]
+      ! call h5close_f (ierr)
 !
 end subroutine
 !#######################################################################
@@ -718,210 +803,213 @@ subroutine wrhdf (fname,s,ierr)
 !
       i=index(fname,'.h')
       if (fname(i+1:i+2).eq.'h5') then
-        call wrh5 (fname,s,ierr)
+      ! [XX: HDF5 file write]
+      !   call wrh5 (fname,s,ierr)
       else
         print*,"HDF4 has been disabled."
         ierr=-1
       end if
 !
 end subroutine
+
+! [XX: HDF5 file write]
 !#######################################################################
-subroutine wrh5 (fname,s,ierr)
-!
-!-----------------------------------------------------------------------
-!
-! ****** Write a 1D, 2D, or 3D scientific data set to an HDF5 file.
-!
-!-----------------------------------------------------------------------
-!
-! ****** Input arguments:
-!
-!          FNAME   : [character(*)]
-!                    File name to write to.
-!
-!          S       : [structure of type DS]
-!                    A structure that holds the field, its
-!                    dimensions, and the scales, with the
-!                    components described below.
-!
-! ****** Output arguments:
-!
-!          IERR    : [integer]
-!                    IERR=0 is returned if the data set was written
-!                    successfully.  Otherwise, IERR is set to a
-!                    nonzero value.
-!
-!-----------------------------------------------------------------------
-!
-      use iso_fortran_env
-      use sds_def
-      use hdf5
-      use h5ds
-!
-!-----------------------------------------------------------------------
-!
-      implicit none
-!
-!-----------------------------------------------------------------------
-!
-      character(*) :: fname
-      type(sds) :: s
-      integer :: ierr
-      intent(in) :: fname,s
-      intent(out) :: ierr
-!
-!-----------------------------------------------------------------------
-!
-      character(8) ::   dimname
-      integer :: i,j,k
-      integer(HID_T) :: file_id       ! File identifier
-      integer(HID_T) :: dset_id       ! Dataset identifier
-      integer(HID_T) :: dspace_id,dspacedim_id   ! Dataspace identifiers
-      integer(HID_T) :: dim_id        ! Dimension identifiers
-      integer(HSIZE_T),dimension(3) :: s_dims
-      integer(HSIZE_T),dimension(1) :: s_dims_i
-!
-      real(REAL32), dimension(:,:,:), allocatable :: f4
-      real(REAL32), dimension(:),     allocatable :: f4dim
-      real(REAL64), dimension(:,:,:), allocatable :: f8
-      real(REAL64), dimension(:),     allocatable :: f8dim
-!
-!-----------------------------------------------------------------------
-!
-! ****** HDF5 calls are picky about the integer format for the dims
-! ****** so the s%dims need to be converted to HSIZE_T integers.
-!
-! ****** Also, sometimes calls to wrhdf() for 1D and 2D datasets
-! ****** do not have the unused dims(i) set to 1 (unset).
-! ****** To avoid needing a function call to implicitly reshape
-! ****** f(n), set the dims here.
-!
-      do i=1,3
-         if (i.le.s%ndim) then
-           s_dims(i) = INT(s%dims(i),HSIZE_T)
-         else
-           s_dims(i) = 1
-         endif
-      end do
-!
-! ****** Initialize hdf5 interface.
-!
-      call h5open_f (ierr)
-!
-! ****** Create the file.
-!
-      call h5Fcreate_f (trim(fname),H5F_ACC_TRUNC_F,file_id,ierr)
-!
-! ****** Create the dataspace.
-!
-      call h5Screate_simple_f (s%ndim,s_dims,dspace_id,ierr)
-!
-! ****** Create and write the dataset (convert s%f to proper type).
-!
-      if (s%hdf32) then
-        allocate (f4(s_dims(1),s_dims(2),s_dims(3)))
-        do k=1,s%dims(3)
-          do j=1,s%dims(2)
-            do i=1,s%dims(1)
-              f4(i,j,k) = REAL(s%f(i,j,k),REAL32)
-            enddo
-          enddo
-        enddo
-        call h5Dcreate_f (file_id,'Data',H5T_NATIVE_REAL, &
-                          dspace_id,dset_id,ierr)
-        call h5Dwrite_f (dset_id,H5T_NATIVE_REAL,f4,s_dims,ierr)
-        deallocate (f4)
-      else
-        allocate (f8(s_dims(1),s_dims(2),s_dims(3)))
-        do k=1,s%dims(3)
-          do j=1,s%dims(2)
-            do i=1,s%dims(1)
-              f8(i,j,k) = REAL(s%f(i,j,k),REAL64)
-            enddo
-          enddo
-        enddo
-        call h5Dcreate_f (file_id,'Data',H5T_NATIVE_DOUBLE, &
-                          dspace_id,dset_id,ierr)
-        call h5Dwrite_f (dset_id,H5T_NATIVE_DOUBLE,f8,s_dims,ierr)
-        deallocate (f8)
-      endif
-      if (ierr.ne.0) then
-        write (*,*)
-        write (*,*) '### ERROR in WRH5:'
-        write (*,*) '### Could not write the dataset.'
-        write (*,*) 'File name: ',trim(fname)
-        write (*,*) '[Error return (from h5Dwrite_f) = ',ierr,']'
-        ierr=4
-        return
-      end if
-!
-! ****** Check for scales.  If present, add them to the hdf5 dataset.
-!
-      if (s%scale) then
-        do i=1,s%ndim
-          if (i.eq.1) then
-            dimname='dim1'
-          elseif (i.eq.2) then
-            dimname='dim2'
-          elseif (i.eq.3) then
-            dimname='dim3'
-          endif
-          s_dims_i = s_dims(i)
-          call h5Screate_simple_f(1,s_dims_i,dspacedim_id,ierr)
-          if (s%hdf32) then
-            allocate (f4dim(s_dims_i(1)))
-            do j=1,s%dims(i)
-              f4dim(j) = REAL(s%scales(i)%f(j),REAL32)
-            end do
-            call h5Dcreate_f (file_id,dimname,H5T_NATIVE_REAL, &
-                              dspacedim_id,dim_id,ierr)
-            call h5Dwrite_f (dim_id,H5T_NATIVE_REAL, &
-                             f4dim,s_dims_i,ierr)
-            deallocate (f4dim)
-          else
-            allocate (f8dim(s_dims_i(1)))
-            do j=1,s%dims(i)
-              f8dim(j) = REAL(s%scales(i)%f(j),REAL64)
-            end do
-            call h5Dcreate_f (file_id,dimname,H5T_NATIVE_DOUBLE, &
-                             dspacedim_id,dim_id,ierr)
-            call h5Dwrite_f (dim_id,H5T_NATIVE_DOUBLE, &
-                             f8dim,s_dims_i,ierr)
-            deallocate (f8dim)
-          endif
-          call h5DSset_scale_f (dim_id,ierr,dimname)
-          call h5DSattach_scale_f (dset_id,dim_id,i,ierr)
-          call h5DSset_label_f(dset_id, i, dimname, ierr)
-          call h5Dclose_f (dim_id,ierr)
-          call h5Sclose_f (dspacedim_id,ierr)
-        end do
-        if (ierr.ne.0) then
-          write (*,*)
-          write (*,*) '### ERROR in WRH5:'
-          write (*,*) '### Could not write the scales.'
-          write (*,*) 'File name: ',trim(fname)
-          ierr = 5
-          return
-        endif
-      endif
-!
-! ****** Close the dataset.
-!
-      call h5Dclose_f (dset_id,ierr)
-!
-! ****** Close the dataspace.
-!
-      call h5Sclose_f (dspace_id,ierr)
-!
-! ****** Close the file.
-!
-      call h5Fclose_f (file_id,ierr)
-!
-! ****** Close the hdf5 interface.
-!
-      call h5close_f (ierr)
-!
-end subroutine
+! subroutine wrh5 (fname,s,ierr)
+! !
+! !-----------------------------------------------------------------------
+! !
+! ! ****** Write a 1D, 2D, or 3D scientific data set to an HDF5 file.
+! !
+! !-----------------------------------------------------------------------
+! !
+! ! ****** Input arguments:
+! !
+! !          FNAME   : [character(*)]
+! !                    File name to write to.
+! !
+! !          S       : [structure of type DS]
+! !                    A structure that holds the field, its
+! !                    dimensions, and the scales, with the
+! !                    components described below.
+! !
+! ! ****** Output arguments:
+! !
+! !          IERR    : [integer]
+! !                    IERR=0 is returned if the data set was written
+! !                    successfully.  Otherwise, IERR is set to a
+! !                    nonzero value.
+! !
+! !-----------------------------------------------------------------------
+! !
+!       use iso_fortran_env
+!       use sds_def
+!       ! use hdf5
+!       ! use h5ds
+! !
+! !-----------------------------------------------------------------------
+! !
+!       implicit none
+! !
+! !-----------------------------------------------------------------------
+! !
+!       character(*) :: fname
+!       type(sds) :: s
+!       integer :: ierr
+!       intent(in) :: fname,s
+!       intent(out) :: ierr
+! !
+! !-----------------------------------------------------------------------
+! !
+!       character(8) ::   dimname
+!       integer :: i,j,k
+!       integer(HID_T) :: file_id       ! File identifier
+!       integer(HID_T) :: dset_id       ! Dataset identifier
+!       integer(HID_T) :: dspace_id,dspacedim_id   ! Dataspace identifiers
+!       integer(HID_T) :: dim_id        ! Dimension identifiers
+!       integer(HSIZE_T),dimension(3) :: s_dims
+!       integer(HSIZE_T),dimension(1) :: s_dims_i
+! !
+!       real(REAL32), dimension(:,:,:), allocatable :: f4
+!       real(REAL32), dimension(:),     allocatable :: f4dim
+!       real(REAL64), dimension(:,:,:), allocatable :: f8
+!       real(REAL64), dimension(:),     allocatable :: f8dim
+! !
+! !-----------------------------------------------------------------------
+! !
+! ! ****** HDF5 calls are picky about the integer format for the dims
+! ! ****** so the s%dims need to be converted to HSIZE_T integers.
+! !
+! ! ****** Also, sometimes calls to wrhdf() for 1D and 2D datasets
+! ! ****** do not have the unused dims(i) set to 1 (unset).
+! ! ****** To avoid needing a function call to implicitly reshape
+! ! ****** f(n), set the dims here.
+! !
+!       do i=1,3
+!          if (i.le.s%ndim) then
+!            s_dims(i) = INT(s%dims(i),HSIZE_T)
+!          else
+!            s_dims(i) = 1
+!          endif
+!       end do
+! !
+! ! ****** Initialize hdf5 interface.
+! !
+!       call h5open_f (ierr)
+! !
+! ! ****** Create the file.
+! !
+!       call h5Fcreate_f (trim(fname),H5F_ACC_TRUNC_F,file_id,ierr)
+! !
+! ! ****** Create the dataspace.
+! !
+!       call h5Screate_simple_f (s%ndim,s_dims,dspace_id,ierr)
+! !
+! ! ****** Create and write the dataset (convert s%f to proper type).
+! !
+!       if (s%hdf32) then
+!         allocate (f4(s_dims(1),s_dims(2),s_dims(3)))
+!         do k=1,s%dims(3)
+!           do j=1,s%dims(2)
+!             do i=1,s%dims(1)
+!               f4(i,j,k) = REAL(s%f(i,j,k),REAL32)
+!             enddo
+!           enddo
+!         enddo
+!         call h5Dcreate_f (file_id,'Data',H5T_NATIVE_REAL, &
+!                           dspace_id,dset_id,ierr)
+!         call h5Dwrite_f (dset_id,H5T_NATIVE_REAL,f4,s_dims,ierr)
+!         deallocate (f4)
+!       else
+!         allocate (f8(s_dims(1),s_dims(2),s_dims(3)))
+!         do k=1,s%dims(3)
+!           do j=1,s%dims(2)
+!             do i=1,s%dims(1)
+!               f8(i,j,k) = REAL(s%f(i,j,k),REAL64)
+!             enddo
+!           enddo
+!         enddo
+!         call h5Dcreate_f (file_id,'Data',H5T_NATIVE_DOUBLE, &
+!                           dspace_id,dset_id,ierr)
+!         call h5Dwrite_f (dset_id,H5T_NATIVE_DOUBLE,f8,s_dims,ierr)
+!         deallocate (f8)
+!       endif
+!       if (ierr.ne.0) then
+!         write (*,*)
+!         write (*,*) '### ERROR in WRH5:'
+!         write (*,*) '### Could not write the dataset.'
+!         write (*,*) 'File name: ',trim(fname)
+!         write (*,*) '[Error return (from h5Dwrite_f) = ',ierr,']'
+!         ierr=4
+!         return
+!       end if
+! !
+! ! ****** Check for scales.  If present, add them to the hdf5 dataset.
+! !
+!       if (s%scale) then
+!         do i=1,s%ndim
+!           if (i.eq.1) then
+!             dimname='dim1'
+!           elseif (i.eq.2) then
+!             dimname='dim2'
+!           elseif (i.eq.3) then
+!             dimname='dim3'
+!           endif
+!           s_dims_i = s_dims(i)
+!           call h5Screate_simple_f(1,s_dims_i,dspacedim_id,ierr)
+!           if (s%hdf32) then
+!             allocate (f4dim(s_dims_i(1)))
+!             do j=1,s%dims(i)
+!               f4dim(j) = REAL(s%scales(i)%f(j),REAL32)
+!             end do
+!             call h5Dcreate_f (file_id,dimname,H5T_NATIVE_REAL, &
+!                               dspacedim_id,dim_id,ierr)
+!             call h5Dwrite_f (dim_id,H5T_NATIVE_REAL, &
+!                              f4dim,s_dims_i,ierr)
+!             deallocate (f4dim)
+!           else
+!             allocate (f8dim(s_dims_i(1)))
+!             do j=1,s%dims(i)
+!               f8dim(j) = REAL(s%scales(i)%f(j),REAL64)
+!             end do
+!             call h5Dcreate_f (file_id,dimname,H5T_NATIVE_DOUBLE, &
+!                              dspacedim_id,dim_id,ierr)
+!             call h5Dwrite_f (dim_id,H5T_NATIVE_DOUBLE, &
+!                              f8dim,s_dims_i,ierr)
+!             deallocate (f8dim)
+!           endif
+!           call h5DSset_scale_f (dim_id,ierr,dimname)
+!           call h5DSattach_scale_f (dset_id,dim_id,i,ierr)
+!           call h5DSset_label_f(dset_id, i, dimname, ierr)
+!           call h5Dclose_f (dim_id,ierr)
+!           call h5Sclose_f (dspacedim_id,ierr)
+!         end do
+!         if (ierr.ne.0) then
+!           write (*,*)
+!           write (*,*) '### ERROR in WRH5:'
+!           write (*,*) '### Could not write the scales.'
+!           write (*,*) 'File name: ',trim(fname)
+!           ierr = 5
+!           return
+!         endif
+!       endif
+! !
+! ! ****** Close the dataset.
+! !
+!       call h5Dclose_f (dset_id,ierr)
+! !
+! ! ****** Close the dataspace.
+! !
+!       call h5Sclose_f (dspace_id,ierr)
+! !
+! ! ****** Close the file.
+! !
+!       call h5Fclose_f (file_id,ierr)
+! !
+! ! ****** Close the hdf5 interface.
+! !
+!       call h5close_f (ierr)
+! !
+! end subroutine
 !#######################################################################
 subroutine rdhdf_1d (fname,scale,nx,f,x,ierr)
 !
