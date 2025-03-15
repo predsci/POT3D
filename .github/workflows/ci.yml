@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - lf_hdf5_mpi_namelist_global_workarounds
+  pull_request:
+    branches:
+      - lf_hdf5_mpi_namelist_global_workarounds
+
+env:
+  MACOSX_DEPLOYMENT_TARGET: 14.0
+
+jobs:
+  Compile_POT3D_with_GFortran:
+    name: "Build POT3D and validate"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["macos-latest", "ubuntu-20.04"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Micromamba
+        uses: mamba-org/setup-micromamba@v2.0.2
+        with:
+          micromamba-version: '2.0.4-0'
+          environment-file: ci/environment.yml
+
+      - name: Verify Environment
+        shell: bash -e -x -l {0}
+        run: |
+          echo "Active Environment: $MAMBA_DEFAULT_ENV"
+          which gfortran || { echo "gfortran not found"; exit 1; }
+          which mpif90 || { echo "mpif90 not found"; exit 1; }
+
+      # build and validation without GFortran's optimization
+      - name: POT3D Build with GFortran without optimization (MPI only)
+        shell: bash -e -x -l {0}
+        run: |
+          echo "RUNNER_OS is set to: $RUNNER_OS"
+          ./build_examples/build_cpu_mpi-only_gcc_gfortran.sh
+          export PATH=$PWD/bin:$PATH
+
+      - name: POT3D Validation with GFortran without optimization
+        shell: bash -e -x -l {0}
+        run: ./validate.sh
+
+      # build and validation with GFortran's optimization
+      - name: POT3D Build with GFortran with optimization (MPI only)
+        shell: bash -e -x -l {0}
+        run: |
+          echo "RUNNER_OS is set to: $RUNNER_OS"
+          ./build_examples/build_cpu_mpi-only_gcc_gfortran_fast.sh
+          export PATH=$PWD/bin:$PATH
+
+      - name: POT3D Validation with GFortran with optimization
+        shell: bash -e -x -l {0}
+        run: ./validate.sh
+
+      - name: POT3D Build (MPI + Multithreaded) [Ubuntu only]
+        if: matrix.os == 'ubuntu-20.04'
+        shell: bash -e -x -l {0}
+        run: |
+          export OMP_NUM_THREADS=2
+          ./build_examples/build_cpu_mpi+multithread_gcc_ubuntu20.04_lf.sh
+          export PATH=$PWD/bin:$PATH
+
+      - name: POT3D Validation (MPI + Multithreaded) [Ubuntu only]
+        if: matrix.os == 'ubuntu-20.04'
+        shell: bash -e -x -l {0}
+        run: ./validate.sh
