@@ -29,11 +29,11 @@ all: $(OBJS)
 	rm -f *.mod *.o 2>/dev/null
 
 clean:
-	rm -f *.mod *.modmic *.o pot3d_cpp.f 2>/dev/null
+	rm -f *.mod *.modmic *.o pot3d_cpp.f90 2>/dev/null
 	rm pot3d 2>/dev/null
 
 pot3d_cpp.f90: pot3d.F90
-	$(FC) -E -cpp $(IF_DEF) > pot3d_cpp.f90 $<
+	$(FC) -E -cpp $(IF_DEF) pot3d.F90 > pot3d_cpp.f90
 
 psi_io.o: psi_io.f90
 	$(FC) -c $(FFLAGS) $<
