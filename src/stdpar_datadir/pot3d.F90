@@ -52,8 +52,8 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.3.1_stdpar_datadir'
-      character(*), parameter :: update='12/05/2024'
+      character(*), parameter :: vers  ='4.4.0_stdpar_datadir'
+      character(*), parameter :: update='03/27/2025'
 !
 end module
 !#######################################################################
@@ -64,7 +64,7 @@ module number_types
 ! ****** This module is used to set the default precision for REALs.
 !-----------------------------------------------------------------------
 !
-      use iso_fortran_env
+      use, intrinsic :: iso_fortran_env
 !
 !-----------------------------------------------------------------------
 !
@@ -638,6 +638,25 @@ module matrix_storage_pot3d_solve
 !
 end module
 !#######################################################################
+module prec_inv_interface
+      interface
+  subroutine prec_inv (x)
+      use number_types
+      use number_types_pc
+      use cgcom
+      use solve_params
+      use matrix_storage_pot3d_solve
+      use, intrinsic :: iso_c_binding
+      use cusparse_interface
+      use timing
+      implicit none
+      real(r_typ), target, dimension(N) :: x
+      real(r_typ_pc), target, dimension(N) :: x_32
+      integer :: i
+  end subroutine
+      end interface
+end module
+!#######################################################################
 program POT3D
 !
 !-----------------------------------------------------------------------
@@ -647,6 +666,7 @@ program POT3D
       use vars
       use solve_params
       use timing
+      use, intrinsic :: iso_fortran_env
 !
 !-----------------------------------------------------------------------
 !
@@ -771,11 +791,11 @@ program POT3D
         write (*,*)
         write (*,*) '### COMMENT from POT3D:'
         write (*,*) '### Starting PCG solve.'
-        call FLUSH(OUTPUT_UNIT)
+        FLUSH(OUTPUT_UNIT)
         write (9,*)
         write (9,*) '### COMMENT from POT3D:'
         write (9,*) '### Starting PCG solve.'
-        call FLUSH(9)
+        FLUSH(9)
       end if
 !
       call timer_on
@@ -3820,7 +3840,10 @@ subroutine potfld
       x_cg(:)=0.
 !$omp target enter data map(to:rhs_cg,x_cg)
 !
-      call getM (N,a_offsets,M)
+      if (ifprec.eq.2) then
+        allocate(a_csr_ia(1+N))
+        call getM (N,a_offsets,M,a_csr_ia)
+      endif
       call alloc_pot3d_matrix_coefs
       call load_matrix_pot3d_solve
 !$omp target enter data map(to:a)
@@ -4148,6 +4171,7 @@ subroutine cgsolve (x,r,N,ierr)
 !
       use number_types
       use cgcom
+      use prec_inv_interface
 !
 !-----------------------------------------------------------------------
 !
@@ -4400,7 +4424,6 @@ subroutine alloc_pot3d_matrix_coefs
         allocate (lu_csr(M))
         allocate (lu_csr_ja(M))
         allocate (a_csr_ja(M))
-        allocate (a_csr_ia(1+N))
         allocate (a_N1(N))
         allocate (a_N2(N))
         allocate (a_csr_d(N))
@@ -4554,13 +4577,13 @@ subroutine load_preconditioner_pot3d_solve
 !
         call diacsr (N,M,a,a_offsets,a_csr,a_csr_ja,a_csr_ia,a_csr_dptr)
 #ifdef CUSPARSE
-      cN=N
-      cM=M
+        cN=N
+        cM=M
 !$omp target enter data map(to:a_csr,a_csr_ja,a_csr_ia)
 !$omp target data use_device_ptr(a_csr,a_csr_ja,a_csr_ia)
-      call load_lusol_cusparse (C_LOC(a_csr(1)),          &
-                                C_LOC(a_csr_ia(1)),       &
-                                C_LOC(a_csr_ja(1)),cN,cM)
+        call load_lusol_cusparse (C_LOC(a_csr(1)),          &
+                                  C_LOC(a_csr_ia(1)),       &
+                                  C_LOC(a_csr_ja(1)),cN,cM)
 !$omp end target data
 #else
 !
@@ -4636,8 +4659,8 @@ subroutine ilu0 (N,M,A,JA,IA,A_da,icode)
 !
 !-----------------------------------------------------------------------
 !
-      integer :: JA(M),IA(N+1),A_da(N),iw(N)
       integer :: icode,N,M
+      integer :: JA(M),IA(N+1),A_da(N),iw(N)
       real(r_typ_pc) :: A(M)
 !
 !-----------------------------------------------------------------------
@@ -4786,9 +4809,9 @@ subroutine diacsr (N,M,Adia,ioff,Acsr,JA,IA,Adptr)
 !
 !-----------------------------------------------------------------------
 !
+      integer :: N,M
       real (r_typ_pc) :: Acsr(M)
       real (r_typ) :: Adia(N,IDIAG)
-      integer :: N,M
       integer :: Adptr(N)
       integer :: IA(N+1)
       integer :: JA(M)
@@ -4803,15 +4826,10 @@ subroutine diacsr (N,M,Adia,ioff,Acsr,JA,IA,Adptr)
 !
       x=0
 !
-      IA(1)=1
-      ko=1
-      i=0
-!
-      do mk=2,npm1
-        do mj=2,ntm1
-          do mi=2,nrm1
+      do concurrent (mk = 2:npm1, mj = 2:ntm1, mi = 2:nrm1) !local(ioffok)
 ! ********* Set index of value and column indicies array:
-            i=i+1
+        i = (mk-2) * (ntm1-1) * (nrm1-1) + (mj-2) * (nrm1-1) + (mi-1)
+        ko = IA(i)
 !
 ! ********* Do not add coefs that multiply boundaries:
 !           For each boundary, there is a sub-set of coefs in the
@@ -4820,34 +4838,34 @@ subroutine diacsr (N,M,Adia,ioff,Acsr,JA,IA,Adptr)
 !
 ! ********* Reset "i-offset-ok-to-use-coef-jj" array:
 !
-            ioffok(:)=1
+        ioffok(:)=1
 !
-            if (mi.eq.2) then
-              ioffok(3)=0;
-            endif
+        if (mi.eq.2) then
+          ioffok(3)=0;
+        endif
 !
-            if (mi.eq.nrm1) then
-              ioffok(5)=0;
-            endif
+        if (mi.eq.nrm1) then
+          ioffok(5)=0;
+        endif
 !
-            if (mj.eq.2) then
-              ioffok(2)=0;
-            endif
+        if (mj.eq.2) then
+          ioffok(2)=0;
+        endif
 !
-            if (mj.eq.ntm1) then
-              ioffok(6)=0;
-            endif
+        if (mj.eq.ntm1) then
+          ioffok(6)=0;
+        endif
 !
 ! ********* Eliminate periodic ceofs in the case nproc_p>1
 !
-            if (nproc_p.gt.1) then
-              if (mk.eq.2) then
-                ioffok(1)=0
-              endif
-              if (mk.eq.npm1) then
-                ioffok(7)=0
-              endif
-            endif
+        if (nproc_p.gt.1) then
+          if (mk.eq.2) then
+            ioffok(1)=0
+          endif
+          if (mk.eq.npm1) then
+            ioffok(7)=0
+          endif
+        endif
 !
 ! ********* To handle periodicity of phi in nproc_p=1 case:
 !           We want CSR matrix to be in order so
@@ -4855,57 +4873,51 @@ subroutine diacsr (N,M,Adia,ioff,Acsr,JA,IA,Adptr)
 !
 ! ********* Add periodic coefs of "right side":
 !
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.gt.N-x) then
-                  j=j-N
-                  Acsr(ko)=real(Adia(i,jj),r_typ_pc)
-                  JA(ko)=j
-                  ko=ko+1
-                endif
-              endif
-            enddo
+        do jj=1,IDIAG
+          if (ioffok(jj).eq.1) then
+            j=i+ioff(jj)-x
+            if (j.gt.N-x) then
+              j=j-N
+              Acsr(ko)=real(Adia(i,jj),r_typ_pc)
+              JA(ko)=j
+              ko=ko+1
+            endif
+          endif
+        enddo
 !
 ! ********* Now do non-periodic coefs:
 !
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.ge.1.and.j.le.N-x) then
+        do jj=1,IDIAG
+          if (ioffok(jj).eq.1) then
+            j=i+ioff(jj)-x
+            if (j.ge.1.and.j.le.N-x) then
 !                 Store pointer to diagonal elements in A:
-                  if (jj.eq.4) Adptr(i)=ko
-                  Acsr(ko)=real(Adia(i,jj),r_typ_pc)
-                  JA(ko)=j
-                  ko=ko+1
-                endif
-              endif
-            enddo
+              if (jj.eq.4) Adptr(i)=ko
+              Acsr(ko)=real(Adia(i,jj),r_typ_pc)
+              JA(ko)=j
+              ko=ko+1
+            endif
+          endif
+        enddo
 !
 ! ********* Now do periodic coefs of "left side":
 !
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.lt.1) then
-                  j=N+j
-                  Acsr(ko)=real(Adia(i,jj),r_typ_pc)
-                  JA(ko)=j
-                  ko=ko+1
-                endif
-              endif
-            enddo
-!
-! ********* Set row offset:
-!
-            IA(i+1)=ko-x
-          enddo
+        do jj=1,IDIAG
+          if (ioffok(jj).eq.1) then
+            j=i+ioff(jj)-x
+            if (j.lt.1) then
+              j=N+j
+              Acsr(ko)=real(Adia(i,jj),r_typ_pc)
+              JA(ko)=j
+              ko=ko+1
+            endif
+          endif
         enddo
       enddo
 !
 end subroutine
 !#######################################################################
-subroutine getM (N, ioff, M)
+subroutine getM (N, ioff, M, IA)
 !
 !-----------------------------------------------------------------------
 !
@@ -4927,19 +4939,20 @@ subroutine getM (N, ioff, M)
 !-----------------------------------------------------------------------
 !
       integer, parameter :: IDIAG=7
-      integer :: N,M,i,j,jj,ko,mi,mj,mk,x
+      integer :: N,M,i,j,jj,mi,mj,mk
+      integer :: iapart
       integer :: ioff(IDIAG)
       integer :: ioffok(IDIAG)
+      integer :: IA(N+1)
 !
-      x=0
-!
-      ko=1
       i=0
+      IA(1)=1
 !
       do mk=2,npm1
         do mj=2,ntm1
           do mi=2,nrm1
 !
+            i=i+1
             ioffok(:)=1
 !
             if (mi.eq.2) then
@@ -4969,39 +4982,20 @@ subroutine getM (N, ioff, M)
               endif
             endif
 !
+            iapart=0
             do jj=1,IDIAG
               if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.gt.N-x) then
-                  ko=ko+1
-                endif
+                iapart=iapart+1
               endif
             enddo
-!
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.ge.1.and.j.le.N-x) then
-                  ko=ko+1
-                endif
-              endif
-            enddo
-!
-            do jj=1,IDIAG
-              if (ioffok(jj).eq.1) then
-                j=i+ioff(jj)-x
-                if (j.lt.1) then
-                  ko=ko+1
-                endif
-              endif
-            enddo
+            IA(i+1)=IA(i)+iapart
           enddo
         enddo
       enddo
 !
 ! *** Save number of non-zeros of matrix:
 !
-      M=ko-1
+      M=IA(N+1)
 !
 end subroutine
 !#######################################################################
@@ -5078,8 +5072,8 @@ subroutine prec_inv (x)
 !
 !-----------------------------------------------------------------------
 !
-      real(r_typ), dimension(N) :: x
-      real(r_typ_pc), dimension(N) :: x_32
+      real(r_typ), target, dimension(N) :: x
+      real(r_typ_pc), target, dimension(N) :: x_32
       integer :: i
 !
 !-----------------------------------------------------------------------
@@ -5169,9 +5163,9 @@ subroutine lusol (N,M,x,LU,LU_ja,N1,N2,LUd_i)
 !
 !-----------------------------------------------------------------------
 !
+      integer :: N,M
       real(r_typ_pc) :: x(N),LUd_i(N),LU(M)
       integer :: N1(N),N2(N),LU_ja(M)
-      integer :: N,M
 !
 !-----------------------------------------------------------------------
 !
@@ -5771,6 +5765,7 @@ subroutine seam_gen (a,n1,n2,n3)
 !
 !-----------------------------------------------------------------------
 !
+      integer :: n1,n2,n3
       real(r_typ), dimension(n1,n2,n3) :: a
 !
 !-----------------------------------------------------------------------
@@ -5793,7 +5788,6 @@ subroutine seam_gen (a,n1,n2,n3)
 !-----------------------------------------------------------------------
 !
       integer :: lbuf,i,j
-      integer :: n1,n2,n3
       integer :: reqs(4)
 !
 !-----------------------------------------------------------------------
@@ -6887,7 +6881,7 @@ function flint (x,n,xn,fn,icheck,ierr)
           ierr=1
           return
         end if
-        do 100 i=1,n-1
+        do i=1,n-1
           if (xn(i+1).le.xn(i)) then
             write (*,*)
             write (*,*) '### ERROR in FLINT:'
@@ -6898,7 +6892,7 @@ function flint (x,n,xn,fn,icheck,ierr)
             ierr=1
             return
           end if
-  100   continue
+        enddo
         return
       end if
 !
@@ -6909,10 +6903,9 @@ function flint (x,n,xn,fn,icheck,ierr)
       else if (x.gt.xn(n)) then
         flint=fn(n)
       else
-        do 200 i=1,n-1
-          if (x.ge.xn(i).and.x.lt.xn(i+1)) go to 300
-  200   continue
-  300   continue
+        do i=1,n-1
+          if (x.ge.xn(i).and.x.lt.xn(i+1)) exit
+        enddo
         x1=xn(i)
         x2=xn(i+1)
         alpha=(x-x1)/(x2-x1)
@@ -6949,12 +6942,12 @@ subroutine interp (x,n,xv,i,alpha)
 !
 !-----------------------------------------------------------------------
 !
-      do 100 i=1,n-1
+      do i=1,n-1
         if (xv.ge.x(i).and.xv.le.x(i+1)) then
           alpha=(xv-x(i))/(x(i+1)-x(i))
-          go to 200
+          return
         end if
-  100 continue
+      enddo
 !
 ! ****** Value not found --- signal error and stop.
 !
@@ -6965,8 +6958,6 @@ subroutine interp (x,n,xv,i,alpha)
       write (*,*) 'Min table value = ',x(1)
       write (*,*) 'Max table value = ',x(n)
       call endrun (.true.)
-!
-  200 continue
 !
 end subroutine
 !#######################################################################
@@ -7188,5 +7179,13 @@ end subroutine
 !       - Code cleanup of modules.
 !       - Made solver seam buffers global to avoid too many
 !         allocates and deallocates for GPU.
+!
+! ### Version 4.4.0, 03/27/2025, modified by RC:
+!
+!       - Small modifications to make code modern fortran compliant.
+!       - Re-worked ILU0 preconditioner (ifprec=2) to pre-compute
+!         the IA array so that the diacsr() routine can be done
+!         in parallel with do concurrent.  This should result in only
+!         a very small speedup, but is useful for implemenation in MAS.
 !
 !#######################################################################
