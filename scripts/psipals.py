@@ -16,7 +16,7 @@ def load(N=1024):
     else:
         rootdir=os.environ.get('CORHEL_HOME')
         if (rootdir is not None):
-            rgbdir="/tools/ps_rsrc/rgb_color_palettes/rgb/"
+            rgbdir="tools/ps_rsrc/rgb_color_palettes/rgb/"
             ierr=1
         else:
             rootdir=sys.path[0]+"/"
