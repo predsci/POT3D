@@ -52,8 +52,8 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.4.0'
-      character(*), parameter :: update='03/27/2025'
+      character(*), parameter :: vers  ='4.5.0'
+      character(*), parameter :: update='05/20/2025'
 !
 end module
 !#######################################################################
@@ -1175,6 +1175,44 @@ subroutine init_mpi
 !
 end subroutine
 !#######################################################################
+pure function is_substring (main_string,sub_string)
+!
+!-----------------------------------------------------------------------
+!
+! ****** Check if one string contains another.
+!
+!-----------------------------------------------------------------------
+!
+      implicit none
+!
+!-----------------------------------------------------------------------
+!
+      logical :: is_substring
+      character(*), intent(in) :: main_string
+      character(*), intent(in) :: sub_string
+!
+!-----------------------------------------------------------------------
+!
+      is_substring=.false.
+!
+! ****** Check for empty string.
+!
+      if (len_trim(sub_string)==0) then
+        is_substring=.true.
+        return
+      end if
+!
+! ****** Check if string is shorter than substring.
+!
+      if (len_trim(main_string) < len_trim(sub_string)) return
+!
+! ****** Check for substring.
+!
+      if (INDEX(main_string,sub_string)>0) is_substring = .true.
+!
+      return
+end function
+!#######################################################################
 subroutine check_input
 !
 !-----------------------------------------------------------------------
@@ -1187,6 +1225,8 @@ subroutine check_input
       use vars
       use solve_params
       use mpidefs
+      use cgcom, ONLY : ifprec
+      use iso_fortran_env
 !
 !-----------------------------------------------------------------------
 !
@@ -1195,6 +1235,10 @@ subroutine check_input
 !-----------------------------------------------------------------------
 !
       real(r_typ), parameter :: one=1._r_typ
+      integer :: ierr=0
+      character(1024) :: compiler=''
+      character(1024) :: compiler_flags=''
+      logical :: is_substring
 !
 !-----------------------------------------------------------------------
 !
@@ -1236,6 +1280,31 @@ subroutine check_input
           write (*,*) '''ss'''
         end if
         call endrun (.true.)
+      end if
+!
+!
+! ****** Get compiler and compiler flags.
+!
+      if (iamp0) then
+        compiler=compiler_version()
+        compiler_flags=compiler_options()
+      end if
+      call MPI_Bcast(compiler,len(compiler),MPI_CHARACTER, &
+                     0,MPI_COMM_WORLD,ierr)
+      call MPI_Bcast(compiler_flags,len(compiler_flags),MPI_CHARACTER, &
+                     0,MPI_COMM_WORLD,ierr)
+!
+      if (is_substring(compiler,'nvfortran') .and. &
+          is_substring(compiler_flags,'stdpar=gpu') .and. &
+          .not.is_substring(compiler_flags,'cusparse')) then
+        if (ifprec.ne.1) then
+          write (*,*)
+          write (*,*) '### NOTE from CHECK_INPUT:'
+          write (*,*) '### Preconditioner choice was'
+          write (*,*) '### not compatible with GPU run.'
+          write (*,*) '### Changing to diagonal scaling.'
+          ifprec=1
+        end if
       end if
 !
       if (iamp0) then
@@ -7203,5 +7272,10 @@ end subroutine
 !         the IA array so that the diacsr() routine can be done
 !         in parallel with do concurrent.  This should result in only
 !         a very small speedup, but is useful for implemenation in MAS.
+!
+! ### Version 4.5.0, 05/20/2025, modified by RC:
+!
+!       - Added automatic check for NVIDIA GPU compilation to
+!         set correct ifprec.
 !
 !#######################################################################

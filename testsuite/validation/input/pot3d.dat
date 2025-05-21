@@ -4,7 +4,7 @@
   np=225
  /
  &inputvars
-  ifprec=1
+  ifprec=2
   option='ss'
   r1=2.5
   rfrac=0.0,1.0

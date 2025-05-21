@@ -9,22 +9,9 @@ import sys
 def load(N=1024):
     # Check for tools or corhel directory and set path root accordingly.
     ierr=0
-    rootdir=os.environ.get('PS_TOOLS_HOME')
-    if (rootdir is not None):
-        rgbdir="color_palettes/rgb/"
-        ierr=1
-    else:
-        rootdir=os.environ.get('CORHEL_HOME')
-        if (rootdir is not None):
-            rgbdir="tools/ps_rsrc/rgb_color_palettes/rgb/"
-            ierr=1
-        else:
-            rootdir=sys.path[0]+"/"
-            rgbdir="psi_color_palettes/"
-            ierr=1
-    
-    if(ierr==0):
-        print("Error in psipals!")
+    rootdir=sys.path[0]+"/"
+    rgbdir="psi_color_palettes/"
+    ierr=1
     if (N<1):
         print("Error in psipals!  Must have N>=1")
         ierr=0

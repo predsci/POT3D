@@ -38,7 +38,7 @@ echo "Wall clock time:                ${runtime[6]} seconds"
 echo " "
 
 #Validate run:
-${POT3D_HOME}/scripts/pot3d_validation.sh pot3d.out ${POT3D_HOME}/testsuite/${TEST}/validation/pot3d.out
+${POT3D_HOME}/bin/pot3d_validation.sh pot3d.out ${POT3D_HOME}/testsuite/${TEST}/validation/pot3d.out
 
 echo " "
 

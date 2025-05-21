@@ -1,4 +1,3 @@
-/bin
 /src/pot3d
 
 *.mod
@@ -8,4 +7,3 @@
 *.out
 
 Makefile
-clean

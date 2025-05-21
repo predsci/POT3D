@@ -1,4 +1,4 @@
-![POT3D](pot3d_logo.png)
+![POT3D](doc/pot3d_logo.png)
   
 # POT3D: High Performance Potential Field Solver 
 [Predictive Science Inc.](https://www.predsci.com)  
@@ -30,13 +30,14 @@ See the multiple build example scripts in the `build_examples` folder for more d
 ### Validate Installation 
   
 After building the code, you can test it is working by running `./validate.sh`.  
-This will perform 2 runs of a small case using 1 and 2 MPI ranks respectively.
+This will perform a small run case using 1 MPI rank.
+To perform the validation with more ranks, use `./validate.sh <NP>` where `<NP>` is the number of ranks requested.
   
-The runs are performed in `testsuite/validation/run/` and the second run overwrites the first.
+The run is performed in `testsuite/validation/run/`.
   
-Each result will be checked against a reference solution (in `/runs/validation/validation`) and a PASS/FAIL message will be displayed.
+The result is checked against a reference solution (in `/runs/validation/validation`) and a PASS/FAIL message will be displayed.
 
-Note that these validation runs use `ifprec=1` even if POT3D was build with cuSparse enabled, so to test a cuSparse build, one needs to modify the pot3d.dat file manually (see below).
+The validation run sets `ifprec=2` but if the code is compiled for NVIDIA GPUs without cuSparse, it will be automatically changed to `ifprec=1`.
   
 --------------------------------
   
@@ -87,7 +88,7 @@ Depending on the input parameters, `POT3D` can have various outputs. Typically, 
   
 ### Helpful Scripts 
   
-Some useful python scripts for reading and plotting the POT3D input data, and reading the output data can be found in the  `scripts` folder.  
+Some useful python scripts for reading and plotting the POT3D input data, and reading the output data can be found in the  `bin` folder.  
   
 -----------------------------
   
@@ -111,7 +112,7 @@ Each test case contains an `input` folder with the run input files, a `run` fold
 
 To run a test, use the included script `run_test.sh` as:  
 `run_test.sh <TEST> <NP>`  
-where `<TEST>` is the test folder name and `<NP>` is the number of MPI ranks to use.  The test will run and then use the included script `scripts/pot3d_validate.sh` that takes two `pot3d.out` files and compares their magnetic energy values in order to validate the run results.  
+where `<TEST>` is the test folder name and `<NP>` is the number of MPI ranks to use.  The test will run and then use the included script `bin/pot3d_validate.sh` that takes two `pot3d.out` files and compares their magnetic energy values in order to validate the run results.  
 
 The following is a list of the included tests, and their problem size and memory requirements:
 
