@@ -52,8 +52,8 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.5.0'
-      character(*), parameter :: update='05/20/2025'
+      character(*), parameter :: vers  ='4.6.0'
+      character(*), parameter :: update='05/28/2025'
 !
 end module
 !#######################################################################
@@ -4652,7 +4652,7 @@ subroutine load_preconditioner_pot3d_solve
 #ifdef CUSPARSE
         cN=N
         cM=M
-!$omp target data use_device_ptr(a_csr,a_csr_ja,a_csr_ia)
+!$omp target data use_device_addr(a_csr,a_csr_ja,a_csr_ia)
         call load_lusol_cusparse (C_LOC(a_csr(1)),          &
                                   C_LOC(a_csr_ia(1)),       &
                                   C_LOC(a_csr_ja(1)),cN,cM)
@@ -5170,7 +5170,7 @@ subroutine prec_inv (x)
 ! ****** ILU0 Partial-Block-Jacobi:
 !
 #ifdef CUSPARSE
-!$omp target data use_device_ptr(x)
+!$omp target data use_device_addr(x)
         call lusol_cusparse(C_LOC(x(1)))
 !$omp end target data
 !
@@ -5498,7 +5498,7 @@ subroutine sum_over_phi (n,a0,a1)
 !
       call timer_on
 !
-!$omp target data use_device_ptr(a0,a1)
+!$omp target data use_device_addr(a0,a1)
       if (tb0) then
         call MPI_Allreduce (MPI_IN_PLACE,a0,n,ntype_real, &
                             MPI_SUM,comm_phi,ierr)
@@ -5717,7 +5717,7 @@ subroutine seam_hhh (a)
 !
       lbuf=nr*nt
 !
-!$omp target data use_device_ptr(a)
+!$omp target data use_device_addr(a)
       call MPI_Isend (a(:,:,np-1),lbuf,ntype_real,iproc_pp,tag, &
                       comm_all,reqs(1),ierr)
 !
@@ -5744,7 +5744,7 @@ subroutine seam_hhh (a)
           sbuf_tp2(i,j)=a(   2,i,j)
         enddo
 !
-!$omp target data use_device_ptr(sbuf_tp1,sbuf_tp2,rbuf_tp1,rbuf_tp2)
+!$omp target data use_device_addr(sbuf_tp1,sbuf_tp2,rbuf_tp1,rbuf_tp2)
         call MPI_Isend (sbuf_tp1,lbuf,ntype_real,iproc_rp,tag, &
                         comm_all,reqs(1),ierr)
 !
@@ -5784,7 +5784,7 @@ subroutine seam_hhh (a)
           sbuf_rp2(i,j)=a(i,   2,j)
         enddo
 !
-!$omp target data use_device_ptr(sbuf_rp1,sbuf_rp2,rbuf_rp1,rbuf_rp2)
+!$omp target data use_device_addr(sbuf_rp1,sbuf_rp2,rbuf_rp1,rbuf_rp2)
         call MPI_Isend (sbuf_rp1,lbuf,ntype_real,iproc_tp,tag, &
                         comm_all,reqs(1),ierr)
 !
@@ -5879,7 +5879,7 @@ subroutine seam_gen (a,n1,n2,n3)
 !
       lbuf=n1*n2
 !
-!$omp target data use_device_ptr(a)
+!$omp target data use_device_addr(a)
       call MPI_Isend (a(:,:,n3-1),lbuf,ntype_real,iproc_pp,tag, &
                       comm_all,reqs(1),ierr)
 !
@@ -5908,7 +5908,7 @@ subroutine seam_gen (a,n1,n2,n3)
           sbuf12(i,j)=a(   2,i,j)
         enddo
 !
-!$omp target data use_device_ptr(sbuf11,sbuf12,rbuf11,rbuf12)
+!$omp target data use_device_addr(sbuf11,sbuf12,rbuf11,rbuf12)
         call MPI_Isend (sbuf11,lbuf,ntype_real,iproc_rp,tag, &
                         comm_all,reqs(1),ierr)
 !
@@ -5952,7 +5952,7 @@ subroutine seam_gen (a,n1,n2,n3)
           sbuf22(i,j)=a(i,   2,j)
         enddo
 !
-!$omp target data use_device_ptr(sbuf21,sbuf22,rbuf21,rbuf22)
+!$omp target data use_device_addr(sbuf21,sbuf22,rbuf21,rbuf22)
         call MPI_Isend (sbuf21,lbuf,ntype_real,iproc_tp,tag, &
                         comm_all,reqs(1),ierr)
 !
@@ -7277,5 +7277,12 @@ end subroutine
 !
 !       - Added automatic check for NVIDIA GPU compilation to
 !         set correct ifprec.
+!
+! ### Version 4.6.0, 05/28/2025, modified by RC:
+!
+!       - Replaced use_device_ptr with use_device_addr to conform to
+!         new OpenMP standard and be compatible with Intel GPUs.
+!         Note, you must use a fairly modern
+!         version of nvfortran to have this work on NVIDIA GPUs.
 !
 !#######################################################################

@@ -1,46 +1,49 @@
-FC=<FC>
+FC = <FC>
 
-POT3D_CUSPARSE=<POT3D_CUSPARSE>
+INCFLAGS = -I<HDF5_INCLUDE_DIR>
 
-ifeq ($(POT3D_CUSPARSE),1)
+LIBFLAGS = -L<HDF5_LIB_DIR> <HDF5_LIB_FLAGS>
+
+USE_CUSPARSE = <USE_CUSPARSE>
+
+ifeq ($(USE_CUSPARSE),1)
   IF_DEF = -DCUSPARSE
   CC = nvc
-  ADDFLAGS = -cudalib=cusparse -lnvJitLink
+  ADDFLAGS = -cudalib=cusparse
   CCFLAGS = <CCFLAGS> $(ADDFLAGS)
 else
   IF_DEF = 
   ADDFLAGS = 
 endif
 
-FFLAGS = <FFLAGS> $(ADDFLAGS) -I<HDF5_INCLUDE_DIR>
+FRTFLAGS = <FRTFLAGS> $(ADDFLAGS)
 
 OBJS0 = psi_io.o
-
-ifeq ($(POT3D_CUSPARSE),1)
-  OBJS = $(OBJS0) lusol_cusparse.o pot3d_cpp.o
+ifeq ($(USE_CUSPARSE),1)
+  OBJS = $(OBJS0) lusol_cusparse.o pot3d.o
 else
-  OBJS = $(OBJS0) pot3d_cpp.o
+  OBJS = $(OBJS0) pot3d.o
 endif
 
-LDFLAGS = -L<HDF5_LIB_DIR> <HDF5_LIB_FLAGS>
-
 all: $(OBJS)
-	$(FC) $(FFLAGS) $(OBJS) $(LDFLAGS) -o pot3d
-	rm -f *.mod *.o 2>/dev/null
+	$(FC) $(FRTFLAGS) $(INCFLAGS) $(OBJS) $(LIBFLAGS) -o pot3d
+	rm -f *.mod *.modmic *.o 2>/dev/null
+
+install:
+	mv pot3d ../bin/
 
 clean:
 	rm -f *.mod *.modmic *.o pot3d_cpp.f90 2>/dev/null
-	rm pot3d 2>/dev/null
+	rm -f pot3d 2>/dev/null
 
-pot3d_cpp.f90: pot3d.F90
+pot3d.o: pot3d.F90
+	rm -f pot3d_cpp.f90 2>/dev/null
 	$(FC) -E -cpp $(IF_DEF) pot3d.F90 > pot3d_cpp.f90
+	$(FC) $(FRTFLAGS) $(INCFLAGS) -c pot3d_cpp.f90 -o pot3d.o
 
 psi_io.o: psi_io.f90
-	$(FC) -c $(FFLAGS) $<
+	$(FC) $(FRTFLAGS) $(INCFLAGS) -c psi_io.f90 -o psi_io.o
 
 lusol_cusparse.o: lusol_cusparse.c 
-	$(CC) -c $(CCFLAGS) $<
-
-pot3d_cpp.o: pot3d_cpp.f90
-	$(FC) -c $(FFLAGS) $<
+	$(CC) $(CCFLAGS) -c lusol_cusparse.c -o lusol_cusparse.o
 
