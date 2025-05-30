@@ -15,13 +15,13 @@
 
 if [[ $# -lt 1 ]]; then
   echo "ERROR: Please specify a build configuration file:"
-  echo "  E.g.:   ./build.sh ./conf/cpu_gcc_mpionly_ubuntu.conf"
+  echo "  Example:   ./build.sh conf/gcc_cpu_ubuntu.conf"
   exit 1
 fi
 
 if [[ $# -gt 1 ]]; then
   echo "ERROR: Please specify a build configuration file:"
-  echo "  E.g.:   ./build.sh ./conf/cpu_gcc_mpionly_ubuntu.conf"
+  echo "  Example:   ./build.sh conf/gcc_cpu_ubuntu.conf"
   exit 1
 fi
 
