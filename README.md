@@ -1,11 +1,11 @@
-![POT3D](doc/pot3d_logo.png)
+<img height=125 src="doc/pot3d_logo.png" alt="POT3D"/> 
   
 # POT3D: High Performance Potential Field Solver 
 [Predictive Science Inc.](https://www.predsci.com)  
   
 ## OVERVIEW  
   
-`POT3D` is a Fortran code that computes potential field solutions to approximate the solar coronal magnetic field using observed photospheric magnetic fields as a boundary condition.  It can be used to generate potential field source surface (PFSS), potential field current sheet (PFCS), and open field (OF) models. It has been (and continues to be) used for numerous studies of coronal structure and dynamics.  The code is highly parallelized using [MPI](https://www.mpi-forum.org) and is GPU-accelerated using Fortran standard parallelism (do concurrent) and [OpenMP Target](https://www.openmp.org/) for data movement and device selection, along with an option to use the [NVIDIA cuSparse library](https://developer.nvidia.com/cusparse). The [HDF5](https://www.hdfgroup.org/solutions/hdf5) file format is used for input/output.
+<img align="right" height=200 src="doc/pot3d_vis.png" alt="POT3D"/>POT3D is a Fortran code that computes potential field solutions to approximate the solar coronal magnetic field using observed photospheric magnetic fields as a boundary condition.  It can be used to generate potential field source surface (PFSS), potential field current sheet (PFCS), and open field (OF) models. It has been (and continues to be) used for numerous studies of coronal structure and dynamics.  The code is highly parallelized using [MPI](https://www.mpi-forum.org) and is GPU-accelerated using Fortran standard parallelism (do concurrent) and [OpenMP Target](https://www.openmp.org/) for data movement and device selection, along with an option to use the [NVIDIA cuSparse library](https://developer.nvidia.com/cusparse). The [HDF5](https://www.hdfgroup.org/solutions/hdf5) file format is used for input/output.
   
 `POT3D` is the potential field solver for the WSA/DCHB model in the CORHEL software suite publicly hosted at the [Community Coordinated Modeling Center (CCMC)](https://ccmc.gsfc.nasa.gov/models/modelinfo.php?model=CORHEL/MAS/WSA/ENLIL).  
 A version of `POT3D` that includes GPU-acceleration with both MPI+[OpenACC](https://www.openacc.org) and MPI+OpenMP was released as part of the Standard Performance Evaluation Corporation's (SPEC) beta version of the [SPEChpc(TM) 2021 benchmark suites](https://www.spec.org/hpc2021).  
