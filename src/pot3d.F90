@@ -52,8 +52,8 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.6.0'
-      character(*), parameter :: update='05/28/2025'
+      character(*), parameter :: vers  ='4.6.1'
+      character(*), parameter :: update='06/08/2025'
 !
 end module
 !#######################################################################
@@ -1288,6 +1288,12 @@ subroutine check_input
       if (iamp0) then
         compiler=compiler_version()
         compiler_flags=compiler_options()
+        write (*,*)
+        write (*,*) 'Compiler:'
+        write (*,*) compiler
+        write (*,*)
+        write (*,*) 'Compiler Flags:'
+        write (*,*) compiler_flags
       end if
       call MPI_Bcast(compiler,len(compiler),MPI_CHARACTER, &
                      0,MPI_COMM_WORLD,ierr)
@@ -1298,11 +1304,13 @@ subroutine check_input
           is_substring(compiler_flags,'stdpar=gpu') .and. &
           .not.is_substring(compiler_flags,'cusparse')) then
         if (ifprec.ne.1) then
-          write (*,*)
-          write (*,*) '### NOTE from CHECK_INPUT:'
-          write (*,*) '### Preconditioner choice was'
-          write (*,*) '### not compatible with GPU run.'
-          write (*,*) '### Changing to diagonal scaling.'
+          if (iamp0) then
+            write (*,*)
+            write (*,*) '### NOTE from CHECK_INPUT:'
+            write (*,*) '### Preconditioner choice was'
+            write (*,*) '### not compatible with GPU run.'
+            write (*,*) '### Changing to diagonal scaling.'
+          end if
           ifprec=1
         end if
       end if
@@ -7284,5 +7292,9 @@ end subroutine
 !         new OpenMP standard and be compatible with Intel GPUs.
 !         Note, you must use a fairly modern
 !         version of nvfortran to have this work on NVIDIA GPUs.
+!
+! ### Version 4.6.1, 06/08/2025, modified by RC:
+!
+!       - Added verbosity to compiler flag checking.
 !
 !#######################################################################
