@@ -1290,10 +1290,10 @@ subroutine check_input
         compiler_flags=compiler_options()
         write (*,*)
         write (*,*) 'Compiler:'
-        write (*,*) compiler
+        write (*,*) trim(compiler)
         write (*,*)
         write (*,*) 'Compiler Flags:'
-        write (*,*) compiler_flags
+        write (*,*) trim(compiler_flags)
       end if
       call MPI_Bcast(compiler,len(compiler),MPI_CHARACTER, &
                      0,MPI_COMM_WORLD,ierr)
