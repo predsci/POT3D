@@ -23,7 +23,7 @@ Details of the `POT3D` code can be found in these publications:
   
 The included `build.sh` script will take a configuration file and generate a Makefile and build the code.  
 The folder `conf` contains example configuration files for various compilers and systems.  
-We recommend copying the configuration file closest to your setup and then modifying it to confomr to your compiler and system (such as `HDF5` library paths/flags, compiler flags, etc.).  
+We recommend copying the configuration file closest to your setup and then modifying it to conform to your compiler and system (such as `HDF5` library paths/flags, compiler flags, etc.).  
   
 Given a configure script `conf/my_custom_build.conf`, the build script is invoked as:  
 ```
