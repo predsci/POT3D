@@ -46,22 +46,20 @@ def main():
     NT = tvec.size
     NP = pvec.size
 
-    print('Opened file:'+args.psi_2d_hdf5_file_name)
-    print('NT:         '+str(NT))
-    print('NP:         '+str(NP))
-    print('min(theta): '+str(np.min(tvec)))
-    print('max(theta): '+str(np.max(tvec)))
-    print('min(phi):   '+str(np.min(pvec)))
-    print('max(phi):   '+str(np.max(pvec)))
-    print('min(data):  '+str(np.min(data)))
-    print('max(data):  '+str(np.max(data)))
-    print('mean(data): '+str(np.mean(data)))
+    print('Opened file:', args.psi_2d_hdf5_file_name)
+    print('NT:         ', NT)
+    print('NP:         ', NP)
+    print('min(theta): ', np.min(tvec))
+    print('max(theta): ', np.max(tvec))
+    print('min(phi):   ', np.min(pvec))
+    print('max(phi):   ', np.max(pvec))
+    print('min(data):  ', np.min(data))
+    print('max(data):  ', np.max(data))
+    print('mean(data): ', np.mean(data))
     print('Example data point at data[5,5]:')
-    print('{}\t{}\t{}'.format('theta', 'phi', 'value'))
-    print('{}\t{}\t{}'.format(tvec[5], pvec[5], data[5,5]))
+    print('theta', 'phi', 'value', sep='\t')
+    print(tvec[5], pvec[5], data[5,5], sep='\t')
 
 
 if __name__ == '__main__':
     main()
-
-

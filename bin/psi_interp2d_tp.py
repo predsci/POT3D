@@ -25,7 +25,7 @@ def interp_3dcart_4pt(x1,x2,x3,x4,y1,y2,y3,y4,z1,z2,z3,z4,f1,f2,f3,f4,xv,yv,zv):
     w2 = np.sqrt((xv-x2)*(xv-x2) + (yv-y2)*(yv-y2) + (zv-z2)*(zv-z2))
     w3 = np.sqrt((xv-x3)*(xv-x3) + (yv-y3)*(yv-y3) + (zv-z3)*(zv-z3))
     w4 = np.sqrt((xv-x4)*(xv-x4) + (yv-y4)*(yv-y4) + (zv-z4)*(zv-z4))
- 
+
     if (w1 == 0.0):
         w1=1.0
         w2=0.0
@@ -125,12 +125,12 @@ def main():
     r=1.0
     eps=1e-7
 
-    print('{}\t{}\t{}'.format('theta', 'phi', 'value'))
+    print('theta', 'phi', 'value', sep='\t')
 
     for ii, point in enumerate(points):
         t = point[0]
         p = point[1]
-        
+
         if (t>tmax+eps or t<tmin-eps):
             print('ERROR!  t is outside tvec!')
             exit(1)
@@ -175,7 +175,7 @@ def main():
         
         value = interp_3dcart_4pt(x1,x2,x3,x4,y1,y2,y3,y4,z1,z2,z3,z4,f1,f2,f3,f4,xv,yv,zv)
 
-        print('{}\t{}\t{}'.format(t, p, value))
+        print(t, p, value, sep='\t')
 
 
 if __name__ == '__main__':
