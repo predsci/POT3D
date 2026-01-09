@@ -52,8 +52,8 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.4.0_nogpumpi'
-      character(*), parameter :: update='03/27/2025'
+      character(*), parameter :: vers  ='4.6.2_nogpumpi'
+      character(*), parameter :: update='01/09/2026'
 !
 end module
 !#######################################################################
@@ -1175,6 +1175,44 @@ subroutine init_mpi
 !
 end subroutine
 !#######################################################################
+pure function is_substring (main_string,sub_string)
+!
+!-----------------------------------------------------------------------
+!
+! ****** Check if one string contains another.
+!
+!-----------------------------------------------------------------------
+!
+      implicit none
+!
+!-----------------------------------------------------------------------
+!
+      logical :: is_substring
+      character(*), intent(in) :: main_string
+      character(*), intent(in) :: sub_string
+!
+!-----------------------------------------------------------------------
+!
+      is_substring=.false.
+!
+! ****** Check for empty string.
+!
+      if (len_trim(sub_string)==0) then
+        is_substring=.true.
+        return
+      end if
+!
+! ****** Check if string is shorter than substring.
+!
+      if (len_trim(main_string) < len_trim(sub_string)) return
+!
+! ****** Check for substring.
+!
+      if (INDEX(main_string,sub_string)>0) is_substring = .true.
+!
+      return
+end function
+!#######################################################################
 subroutine check_input
 !
 !-----------------------------------------------------------------------
@@ -1187,6 +1225,8 @@ subroutine check_input
       use vars
       use solve_params
       use mpidefs
+      use cgcom, ONLY : ifprec
+      use iso_fortran_env
 !
 !-----------------------------------------------------------------------
 !
@@ -1195,6 +1235,10 @@ subroutine check_input
 !-----------------------------------------------------------------------
 !
       real(r_typ), parameter :: one=1._r_typ
+      integer :: ierr=0
+      character(1024) :: compiler=''
+      character(1024) :: compiler_flags=''
+      logical :: is_substring
 !
 !-----------------------------------------------------------------------
 !
@@ -1236,6 +1280,41 @@ subroutine check_input
           write (*,*) '''ss'''
         end if
         call endrun (.true.)
+      end if
+!
+!
+! ****** Get compiler and compiler flags.
+!
+      if (iamp0) then
+        compiler=compiler_version()
+        compiler_flags=compiler_options()
+        write (*,*)
+        write (*,*) 'Compiler:'
+        write (*,*) trim(compiler)
+        write (*,*)
+        write (*,*) 'Compiler Flags:'
+        write (*,*) trim(compiler_flags)
+      end if
+      call MPI_Bcast(compiler,len(compiler),MPI_CHARACTER, &
+                     0,MPI_COMM_WORLD,ierr)
+      call MPI_Bcast(compiler_flags,len(compiler_flags),MPI_CHARACTER, &
+                     0,MPI_COMM_WORLD,ierr)
+!
+      if ((is_substring(compiler,'nvfortran') .and. &
+           is_substring(compiler_flags,'stdpar=gpu') .and. &
+          .not.is_substring(compiler_flags,'cusparse')) .or. &
+          (is_substring(compiler,'ifx') .and. &
+           is_substring(compiler_flags,'spir64'))) then
+        if (ifprec.ne.1) then
+          if (iamp0) then
+            write (*,*)
+            write (*,*) '### NOTE from CHECK_INPUT:'
+            write (*,*) '### Preconditioner choice was'
+            write (*,*) '### not compatible with GPU run.'
+            write (*,*) '### Changing to diagonal scaling.'
+          end if
+          ifprec=1
+        end if
       end if
 !
       if (iamp0) then
@@ -4583,7 +4662,7 @@ subroutine load_preconditioner_pot3d_solve
 #ifdef CUSPARSE
         cN=N
         cM=M
-!$omp target data use_device_ptr(a_csr,a_csr_ja,a_csr_ia)
+!$omp target data use_device_addr(a_csr,a_csr_ja,a_csr_ia)
         call load_lusol_cusparse (C_LOC(a_csr(1)),          &
                                   C_LOC(a_csr_ia(1)),       &
                                   C_LOC(a_csr_ja(1)),cN,cM)
@@ -5101,7 +5180,7 @@ subroutine prec_inv (x)
 ! ****** ILU0 Partial-Block-Jacobi:
 !
 #ifdef CUSPARSE
-!$omp target data use_device_ptr(x)
+!$omp target data use_device_addr(x)
         call lusol_cusparse(C_LOC(x(1)))
 !$omp end target data
 !
@@ -5429,17 +5508,19 @@ subroutine sum_over_phi (n,a0,a1)
 !
       call timer_on
 !
-!$omp target data use_device_ptr(a0,a1)
       if (tb0) then
+!$omp target update from(a0)
         call MPI_Allreduce (MPI_IN_PLACE,a0,n,ntype_real, &
                             MPI_SUM,comm_phi,ierr)
+!$omp target update to(a0)
       end if
 !
       if (tb1) then
+!$omp target update from(a1)
         call MPI_Allreduce (MPI_IN_PLACE,a1,n,ntype_real, &
                             MPI_SUM,comm_phi,ierr)
+!$omp target update to(a1)
       end if
-!$omp end target data
 !
       call timer_off (c_sumphi)
 !
@@ -5589,163 +5670,6 @@ subroutine seam_setup
 !$omp target enter data map(alloc:rbuf_rt1,rbuf_rt2)
 !$omp target enter data map(alloc:rbuf_tp1,rbuf_tp2)
 !$omp target enter data map(alloc:rbuf_rp1,rbuf_rp2)
-!
-end subroutine
-!#######################################################################
-subroutine seam_hhh (a)
-!
-!-----------------------------------------------------------------------
-!
-! ****** Seam the boundary points of 3D (r,t,p) array A between
-! ****** adjacent processors.
-!
-! ****** This routine assumes that there is a two-point
-! ****** overlap between processors in each dimension.
-!
-!-----------------------------------------------------------------------
-!
-! ****** This version uses non-blocking MPI sends and receives
-! ****** whenever possible in order to overlap communications.
-!
-!-----------------------------------------------------------------------
-!
-      use number_types
-      use mpidefs
-      use timing
-      use local_mesh
-      use local_dims
-      use cgcom
-!
-!-----------------------------------------------------------------------
-!
-      implicit none
-!
-!-----------------------------------------------------------------------
-!
-      real(r_typ), dimension(nr,nt,np) :: a
-!
-!-----------------------------------------------------------------------
-!
-! ****** MPI error return.
-!
-      integer :: ierr
-!
-! ****** MPI tag for MPI_ISEND and MPI_IRECV (not tagged).
-!
-      integer :: tag=0
-!
-!-----------------------------------------------------------------------
-!
-      integer :: lbuf,i,j
-      integer :: reqs(4)
-!
-!-----------------------------------------------------------------------
-!
-      call timer_on
-!
-! ****** Seam the third (periodic) dimension.
-! ****** Since halo data is stride-1, no need for buffers.
-!
-      lbuf=nr*nt
-!
-!$omp target data use_device_ptr(a)
-      call MPI_Isend (a(:,:,np-1),lbuf,ntype_real,iproc_pp,tag, &
-                      comm_all,reqs(1),ierr)
-!
-      call MPI_Isend (a(:,:,   2),lbuf,ntype_real,iproc_pm,tag, &
-                      comm_all,reqs(2),ierr)
-!
-      call MPI_Irecv (a(:,:, 1),lbuf,ntype_real,iproc_pm,tag,   &
-                      comm_all,reqs(3),ierr)
-!
-      call MPI_Irecv (a(:,:,np),lbuf,ntype_real,iproc_pp,tag,   &
-                      comm_all,reqs(4),ierr)
-!
-      call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
-!$omp end target data
-!
-! ****** Seam the first dimension.
-!
-      if (nproc_r.gt.1) then
-!
-        lbuf=nt*np
-!
-        do concurrent (j=1:np, i=1:nt)
-          sbuf_tp1(i,j)=a(nr-1,i,j)
-          sbuf_tp2(i,j)=a(   2,i,j)
-        enddo
-!
-!$omp target data use_device_ptr(sbuf_tp1,sbuf_tp2,rbuf_tp1,rbuf_tp2)
-        call MPI_Isend (sbuf_tp1,lbuf,ntype_real,iproc_rp,tag, &
-                        comm_all,reqs(1),ierr)
-!
-        call MPI_Isend (sbuf_tp2,lbuf,ntype_real,iproc_rm,tag, &
-                        comm_all,reqs(2),ierr)
-!
-        call MPI_Irecv (rbuf_tp1,lbuf,ntype_real,iproc_rm,tag, &
-                        comm_all,reqs(3),ierr)
-!
-        call MPI_Irecv (rbuf_tp2,lbuf,ntype_real,iproc_rp,tag, &
-                        comm_all,reqs(4),ierr)
-!
-        call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
-!$omp end target data
-!
-        if (iproc_rm.ne.MPI_PROC_NULL) then
-          do concurrent (j=1:np, i=1:nt)
-            a( 1,i,j)=rbuf_tp1(i,j)
-          enddo
-        end if
-!
-        if (iproc_rp.ne.MPI_PROC_NULL) then
-          do concurrent (j=1:np, i=1:nt)
-            a(nr,i,j)=rbuf_tp2(i,j)
-          enddo
-        end if
-      end if
-!
-! ****** Seam the second dimension.
-!
-      if (nproc_t.gt.1) then
-!
-        lbuf=nr*np
-!
-        do concurrent (j=1:np, i=1:nr)
-          sbuf_rp1(i,j)=a(i,nt-1,j)
-          sbuf_rp2(i,j)=a(i,   2,j)
-        enddo
-!
-!$omp target data use_device_ptr(sbuf_rp1,sbuf_rp2,rbuf_rp1,rbuf_rp2)
-        call MPI_Isend (sbuf_rp1,lbuf,ntype_real,iproc_tp,tag, &
-                        comm_all,reqs(1),ierr)
-!
-        call MPI_Isend (sbuf_rp2,lbuf,ntype_real,iproc_tm,tag, &
-                        comm_all,reqs(2),ierr)
-!
-        call MPI_Irecv (rbuf_rp1,lbuf,ntype_real,iproc_tm,tag, &
-                        comm_all,reqs(3),ierr)
-!
-        call MPI_Irecv (rbuf_rp2,lbuf,ntype_real,iproc_tp,tag, &
-                        comm_all,reqs(4),ierr)
-!
-        call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
-!$omp end target data
-!
-        if (iproc_tm.ne.MPI_PROC_NULL) then
-          do concurrent (j=1:np, i=1:nr)
-            a(i, 1,j)=rbuf_rp1(i,j)
-          enddo
-        end if
-!
-        if (iproc_tp.ne.MPI_PROC_NULL) then
-          do concurrent (j=1:np, i=1:nr)
-            a(i,nt,j)=rbuf_rp2(i,j)
-          enddo
-        end if
-!
-      end if
-!
-      call timer_off (c_seam)
 !
 end subroutine
 !#######################################################################
@@ -7218,5 +7142,25 @@ end subroutine
 !         the IA array so that the diacsr() routine can be done
 !         in parallel with do concurrent.  This should result in only
 !         a very small speedup, but is useful for implemenation in MAS.
+!
+! ### Version 4.5.0, 05/20/2025, modified by RC:
+!
+!       - Added automatic check for NVIDIA GPU compilation to
+!         set correct ifprec.
+!
+! ### Version 4.6.0, 05/28/2025, modified by RC:
+!
+!       - Replaced use_device_ptr with use_device_addr to conform to
+!         new OpenMP standard and be compatible with Intel GPUs.
+!         Note, you must use a fairly modern
+!         version of nvfortran to have this work on NVIDIA GPUs.
+!
+! ### Version 4.6.1, 06/08/2025, modified by RC:
+!
+!       - Added verbosity to compiler flag checking.
+!
+! ### Version 4.6.2, 01/09/2026, modified by RC:
+!
+!       - Updated ifprec checker for Intel GPU compilation.
 !
 !#######################################################################

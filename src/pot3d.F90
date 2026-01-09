@@ -52,8 +52,8 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.6.1'
-      character(*), parameter :: update='06/08/2025'
+      character(*), parameter :: vers  ='4.6.2'
+      character(*), parameter :: update='01/09/2026'
 !
 end module
 !#######################################################################
@@ -1300,9 +1300,11 @@ subroutine check_input
       call MPI_Bcast(compiler_flags,len(compiler_flags),MPI_CHARACTER, &
                      0,MPI_COMM_WORLD,ierr)
 !
-      if (is_substring(compiler,'nvfortran') .and. &
-          is_substring(compiler_flags,'stdpar=gpu') .and. &
-          .not.is_substring(compiler_flags,'cusparse')) then
+      if ((is_substring(compiler,'nvfortran') .and. &
+           is_substring(compiler_flags,'stdpar=gpu') .and. &
+          .not.is_substring(compiler_flags,'cusparse')) .or. &
+          (is_substring(compiler,'ifx') .and. &
+           is_substring(compiler_flags,'spir64'))) then
         if (ifprec.ne.1) then
           if (iamp0) then
             write (*,*)
@@ -7296,5 +7298,9 @@ end subroutine
 ! ### Version 4.6.1, 06/08/2025, modified by RC:
 !
 !       - Added verbosity to compiler flag checking.
+!
+! ### Version 4.6.2, 01/09/2026, modified by RC:
+!
+!       - Updated ifprec checker for Intel GPU compilation.
 !
 !#######################################################################

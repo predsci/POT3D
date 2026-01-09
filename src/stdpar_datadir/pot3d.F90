@@ -52,8 +52,8 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.4.0_stdpar_datadir'
-      character(*), parameter :: update='03/27/2025'
+      character(*), parameter :: vers  ='4.6.2_stdpar_datadir'
+      character(*), parameter :: update='01/09/2026'
 !
 end module
 !#######################################################################
@@ -1175,6 +1175,44 @@ subroutine init_mpi
 !
 end subroutine
 !#######################################################################
+pure function is_substring (main_string,sub_string)
+!
+!-----------------------------------------------------------------------
+!
+! ****** Check if one string contains another.
+!
+!-----------------------------------------------------------------------
+!
+      implicit none
+!
+!-----------------------------------------------------------------------
+!
+      logical :: is_substring
+      character(*), intent(in) :: main_string
+      character(*), intent(in) :: sub_string
+!
+!-----------------------------------------------------------------------
+!
+      is_substring=.false.
+!
+! ****** Check for empty string.
+!
+      if (len_trim(sub_string)==0) then
+        is_substring=.true.
+        return
+      end if
+!
+! ****** Check if string is shorter than substring.
+!
+      if (len_trim(main_string) < len_trim(sub_string)) return
+!
+! ****** Check for substring.
+!
+      if (INDEX(main_string,sub_string)>0) is_substring = .true.
+!
+      return
+end function
+!#######################################################################
 subroutine check_input
 !
 !-----------------------------------------------------------------------
@@ -1187,6 +1225,8 @@ subroutine check_input
       use vars
       use solve_params
       use mpidefs
+      use cgcom, ONLY : ifprec
+      use iso_fortran_env
 !
 !-----------------------------------------------------------------------
 !
@@ -1195,6 +1235,10 @@ subroutine check_input
 !-----------------------------------------------------------------------
 !
       real(r_typ), parameter :: one=1._r_typ
+      integer :: ierr=0
+      character(1024) :: compiler=''
+      character(1024) :: compiler_flags=''
+      logical :: is_substring
 !
 !-----------------------------------------------------------------------
 !
@@ -1236,6 +1280,41 @@ subroutine check_input
           write (*,*) '''ss'''
         end if
         call endrun (.true.)
+      end if
+!
+!
+! ****** Get compiler and compiler flags.
+!
+      if (iamp0) then
+        compiler=compiler_version()
+        compiler_flags=compiler_options()
+        write (*,*)
+        write (*,*) 'Compiler:'
+        write (*,*) trim(compiler)
+        write (*,*)
+        write (*,*) 'Compiler Flags:'
+        write (*,*) trim(compiler_flags)
+      end if
+      call MPI_Bcast(compiler,len(compiler),MPI_CHARACTER, &
+                     0,MPI_COMM_WORLD,ierr)
+      call MPI_Bcast(compiler_flags,len(compiler_flags),MPI_CHARACTER, &
+                     0,MPI_COMM_WORLD,ierr)
+!
+      if ((is_substring(compiler,'nvfortran') .and. &
+           is_substring(compiler_flags,'stdpar=gpu') .and. &
+          .not.is_substring(compiler_flags,'cusparse')) .or. &
+          (is_substring(compiler,'ifx') .and. &
+           is_substring(compiler_flags,'spir64'))) then
+        if (ifprec.ne.1) then
+          if (iamp0) then
+            write (*,*)
+            write (*,*) '### NOTE from CHECK_INPUT:'
+            write (*,*) '### Preconditioner choice was'
+            write (*,*) '### not compatible with GPU run.'
+            write (*,*) '### Changing to diagonal scaling.'
+          end if
+          ifprec=1
+        end if
       end if
 !
       if (iamp0) then
@@ -3843,6 +3922,7 @@ subroutine potfld
       if (ifprec.eq.2) then
         allocate(a_csr_ia(1+N))
         call getM (N,a_offsets,M,a_csr_ia)
+!$omp target enter data map(to:a_csr_ia)
       endif
       call alloc_pot3d_matrix_coefs
       call load_matrix_pot3d_solve
@@ -4575,17 +4655,20 @@ subroutine load_preconditioner_pot3d_solve
 !
 ! ****** Convert A matrix into CSR format:
 !
+!$omp target enter data map(to:a_offsets)
+!$omp target enter data map(alloc:a_csr,a_csr_ja,a_csr_dptr)
         call diacsr (N,M,a,a_offsets,a_csr,a_csr_ja,a_csr_ia,a_csr_dptr)
+!$omp target exit data map(delete:a_offsets)
 #ifdef CUSPARSE
         cN=N
         cM=M
-!$omp target enter data map(to:a_csr,a_csr_ja,a_csr_ia)
-!$omp target data use_device_ptr(a_csr,a_csr_ja,a_csr_ia)
+!$omp target data use_device_addr(a_csr,a_csr_ja,a_csr_ia)
         call load_lusol_cusparse (C_LOC(a_csr(1)),          &
                                   C_LOC(a_csr_ia(1)),       &
                                   C_LOC(a_csr_ja(1)),cN,cM)
 !$omp end target data
 #else
+!$omp target update from(a_csr,a_csr_ja,a_csr_ia,a_csr_dptr)
 !
 ! ****** Overwrite CSR A with preconditioner L and U matrices:
 !
@@ -4826,6 +4909,7 @@ subroutine diacsr (N,M,Adia,ioff,Acsr,JA,IA,Adptr)
 !
       x=0
 !
+!$omp target enter data map(alloc:ioffok)
       do concurrent (mk = 2:npm1, mj = 2:ntm1, mi = 2:nrm1) !local(ioffok)
 ! ********* Set index of value and column indicies array:
         i = (mk-2) * (ntm1-1) * (nrm1-1) + (mj-2) * (nrm1-1) + (mi-1)
@@ -4915,6 +4999,7 @@ subroutine diacsr (N,M,Adia,ioff,Acsr,JA,IA,Adptr)
         enddo
       enddo
 !
+!$omp target exit data map(delete:ioffok)
 end subroutine
 !#######################################################################
 subroutine getM (N, ioff, M, IA)
@@ -5095,7 +5180,7 @@ subroutine prec_inv (x)
 ! ****** ILU0 Partial-Block-Jacobi:
 !
 #ifdef CUSPARSE
-!$omp target data use_device_ptr(x)
+!$omp target data use_device_addr(x)
         call lusol_cusparse(C_LOC(x(1)))
 !$omp end target data
 !
@@ -5419,7 +5504,7 @@ subroutine sum_over_phi (n,a0,a1)
 !
       call timer_on
 !
-!$omp target data use_device_ptr(a0,a1)
+!$omp target data use_device_addr(a0,a1)
       if (tb0) then
         call MPI_Allreduce (MPI_IN_PLACE,a0,n,ntype_real, &
                             MPI_SUM,comm_phi,ierr)
@@ -5637,7 +5722,7 @@ subroutine seam_hhh (a)
 !
       lbuf=nr*nt
 !
-!$omp target data use_device_ptr(a)
+!$omp target data use_device_addr(a)
       call MPI_Isend (a(:,:,np-1),lbuf,ntype_real,iproc_pp,tag, &
                       comm_all,reqs(1),ierr)
 !
@@ -5664,7 +5749,7 @@ subroutine seam_hhh (a)
           sbuf_tp2(i,j)=a(   2,i,j)
         enddo
 !
-!$omp target data use_device_ptr(sbuf_tp1,sbuf_tp2,rbuf_tp1,rbuf_tp2)
+!$omp target data use_device_addr(sbuf_tp1,sbuf_tp2,rbuf_tp1,rbuf_tp2)
         call MPI_Isend (sbuf_tp1,lbuf,ntype_real,iproc_rp,tag, &
                         comm_all,reqs(1),ierr)
 !
@@ -5704,7 +5789,7 @@ subroutine seam_hhh (a)
           sbuf_rp2(i,j)=a(i,   2,j)
         enddo
 !
-!$omp target data use_device_ptr(sbuf_rp1,sbuf_rp2,rbuf_rp1,rbuf_rp2)
+!$omp target data use_device_addr(sbuf_rp1,sbuf_rp2,rbuf_rp1,rbuf_rp2)
         call MPI_Isend (sbuf_rp1,lbuf,ntype_real,iproc_tp,tag, &
                         comm_all,reqs(1),ierr)
 !
@@ -5799,7 +5884,7 @@ subroutine seam_gen (a,n1,n2,n3)
 !
       lbuf=n1*n2
 !
-!$omp target data use_device_ptr(a)
+!$omp target data use_device_addr(a)
       call MPI_Isend (a(:,:,n3-1),lbuf,ntype_real,iproc_pp,tag, &
                       comm_all,reqs(1),ierr)
 !
@@ -5828,7 +5913,7 @@ subroutine seam_gen (a,n1,n2,n3)
           sbuf12(i,j)=a(   2,i,j)
         enddo
 !
-!$omp target data use_device_ptr(sbuf11,sbuf12,rbuf11,rbuf12)
+!$omp target data use_device_addr(sbuf11,sbuf12,rbuf11,rbuf12)
         call MPI_Isend (sbuf11,lbuf,ntype_real,iproc_rp,tag, &
                         comm_all,reqs(1),ierr)
 !
@@ -5872,7 +5957,7 @@ subroutine seam_gen (a,n1,n2,n3)
           sbuf22(i,j)=a(i,   2,j)
         enddo
 !
-!$omp target data use_device_ptr(sbuf21,sbuf22,rbuf21,rbuf22)
+!$omp target data use_device_addr(sbuf21,sbuf22,rbuf21,rbuf22)
         call MPI_Isend (sbuf21,lbuf,ntype_real,iproc_tp,tag, &
                         comm_all,reqs(1),ierr)
 !
@@ -7187,5 +7272,25 @@ end subroutine
 !         the IA array so that the diacsr() routine can be done
 !         in parallel with do concurrent.  This should result in only
 !         a very small speedup, but is useful for implemenation in MAS.
+!
+! ### Version 4.5.0, 05/20/2025, modified by RC:
+!
+!       - Added automatic check for NVIDIA GPU compilation to
+!         set correct ifprec.
+!
+! ### Version 4.6.0, 05/28/2025, modified by RC:
+!
+!       - Replaced use_device_ptr with use_device_addr to conform to
+!         new OpenMP standard and be compatible with Intel GPUs.
+!         Note, you must use a fairly modern
+!         version of nvfortran to have this work on NVIDIA GPUs.
+!
+! ### Version 4.6.1, 06/08/2025, modified by RC:
+!
+!       - Added verbosity to compiler flag checking.
+!
+! ### Version 4.6.2, 01/09/2026, modified by RC:
+!
+!       - Updated ifprec checker for Intel GPU compilation.
 !
 !#######################################################################
