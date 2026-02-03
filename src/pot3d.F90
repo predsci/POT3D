@@ -52,7 +52,7 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.6.2'
+      character(*), parameter :: vers  ='4.6.2_nogpumpi'
       character(*), parameter :: update='01/09/2026'
 !
 end module
@@ -3933,7 +3933,7 @@ subroutine potfld
 ! ****** boundary conditions (i.e., the inhomogenous part).
 !
       call set_boundary_points (x_ax,one)
-      call seam_hhh (x_ax)
+      call seam_gen (x_ax,nr,nt,np)
       call delsq (x_ax,rhs_cg)
 !
 ! ****** Original rhs is zero so just use negative of boundary
@@ -3960,7 +3960,7 @@ subroutine potfld
       call unpack_scalar (phi,x_cg)
 !
       call set_boundary_points (phi,one)
-      call seam_hhh (phi)
+      call seam_gen (phi,nr,nt,np)
 !
 !$omp target exit data map(delete:rhs_cg,x_cg,a,a_i)
       call dealloc_pot3d_matrix_coefs
@@ -4101,7 +4101,7 @@ subroutine write_validation_solution
       enddo
 !
       call set_boundary_points (phi,one)
-      call seam_hhh (phi)
+      call seam_gen (phi,nr,nt,np)
 !
 !$omp target enter data map(alloc:br,bt,bp)
 !
@@ -5121,7 +5121,7 @@ subroutine ax (x,y,N)
 !
 ! ****** Seam along edges between processors.
 !
-      call seam_hhh (x_ax)
+      call seam_gen (x_ax,nr,nt,np)
 !
 ! ****** Get the matrix-vector product.
 !
@@ -5507,17 +5507,19 @@ subroutine sum_over_phi (n,a0,a1)
 !
       call timer_on
 !
-!$omp target data use_device_addr(a0,a1)
       if (tb0) then
+!$omp target update from(a0)
         call MPI_Allreduce (MPI_IN_PLACE,a0,n,ntype_real, &
                             MPI_SUM,comm_phi,ierr)
+!$omp target update to(a0)
       end if
 !
       if (tb1) then
+!$omp target update from(a1)
         call MPI_Allreduce (MPI_IN_PLACE,a1,n,ntype_real, &
                             MPI_SUM,comm_phi,ierr)
+!$omp target update to(a1)
       end if
-!$omp end target data
 !
       call timer_off (c_sumphi)
 !
@@ -5670,163 +5672,6 @@ subroutine seam_setup
 !
 end subroutine
 !#######################################################################
-subroutine seam_hhh (a)
-!
-!-----------------------------------------------------------------------
-!
-! ****** Seam the boundary points of 3D (r,t,p) array A between
-! ****** adjacent processors.
-!
-! ****** This routine assumes that there is a two-point
-! ****** overlap between processors in each dimension.
-!
-!-----------------------------------------------------------------------
-!
-! ****** This version uses non-blocking MPI sends and receives
-! ****** whenever possible in order to overlap communications.
-!
-!-----------------------------------------------------------------------
-!
-      use number_types
-      use mpidefs
-      use timing
-      use local_mesh
-      use local_dims
-      use cgcom
-!
-!-----------------------------------------------------------------------
-!
-      implicit none
-!
-!-----------------------------------------------------------------------
-!
-      real(r_typ), dimension(nr,nt,np) :: a
-!
-!-----------------------------------------------------------------------
-!
-! ****** MPI error return.
-!
-      integer :: ierr
-!
-! ****** MPI tag for MPI_ISEND and MPI_IRECV (not tagged).
-!
-      integer :: tag=0
-!
-!-----------------------------------------------------------------------
-!
-      integer :: lbuf,i,j
-      integer :: reqs(4)
-!
-!-----------------------------------------------------------------------
-!
-      call timer_on
-!
-! ****** Seam the third (periodic) dimension.
-! ****** Since halo data is stride-1, no need for buffers.
-!
-      lbuf=nr*nt
-!
-!$omp target data use_device_addr(a)
-      call MPI_Isend (a(:,:,np-1),lbuf,ntype_real,iproc_pp,tag, &
-                      comm_all,reqs(1),ierr)
-!
-      call MPI_Isend (a(:,:,   2),lbuf,ntype_real,iproc_pm,tag, &
-                      comm_all,reqs(2),ierr)
-!
-      call MPI_Irecv (a(:,:, 1),lbuf,ntype_real,iproc_pm,tag,   &
-                      comm_all,reqs(3),ierr)
-!
-      call MPI_Irecv (a(:,:,np),lbuf,ntype_real,iproc_pp,tag,   &
-                      comm_all,reqs(4),ierr)
-!
-      call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
-!$omp end target data
-!
-! ****** Seam the first dimension.
-!
-      if (nproc_r.gt.1) then
-!
-        lbuf=nt*np
-!
-        do concurrent (j=1:np, i=1:nt)
-          sbuf_tp1(i,j)=a(nr-1,i,j)
-          sbuf_tp2(i,j)=a(   2,i,j)
-        enddo
-!
-!$omp target data use_device_addr(sbuf_tp1,sbuf_tp2,rbuf_tp1,rbuf_tp2)
-        call MPI_Isend (sbuf_tp1,lbuf,ntype_real,iproc_rp,tag, &
-                        comm_all,reqs(1),ierr)
-!
-        call MPI_Isend (sbuf_tp2,lbuf,ntype_real,iproc_rm,tag, &
-                        comm_all,reqs(2),ierr)
-!
-        call MPI_Irecv (rbuf_tp1,lbuf,ntype_real,iproc_rm,tag, &
-                        comm_all,reqs(3),ierr)
-!
-        call MPI_Irecv (rbuf_tp2,lbuf,ntype_real,iproc_rp,tag, &
-                        comm_all,reqs(4),ierr)
-!
-        call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
-!$omp end target data
-!
-        if (iproc_rm.ne.MPI_PROC_NULL) then
-          do concurrent (j=1:np, i=1:nt)
-            a( 1,i,j)=rbuf_tp1(i,j)
-          enddo
-        end if
-!
-        if (iproc_rp.ne.MPI_PROC_NULL) then
-          do concurrent (j=1:np, i=1:nt)
-            a(nr,i,j)=rbuf_tp2(i,j)
-          enddo
-        end if
-      end if
-!
-! ****** Seam the second dimension.
-!
-      if (nproc_t.gt.1) then
-!
-        lbuf=nr*np
-!
-        do concurrent (j=1:np, i=1:nr)
-          sbuf_rp1(i,j)=a(i,nt-1,j)
-          sbuf_rp2(i,j)=a(i,   2,j)
-        enddo
-!
-!$omp target data use_device_addr(sbuf_rp1,sbuf_rp2,rbuf_rp1,rbuf_rp2)
-        call MPI_Isend (sbuf_rp1,lbuf,ntype_real,iproc_tp,tag, &
-                        comm_all,reqs(1),ierr)
-!
-        call MPI_Isend (sbuf_rp2,lbuf,ntype_real,iproc_tm,tag, &
-                        comm_all,reqs(2),ierr)
-!
-        call MPI_Irecv (rbuf_rp1,lbuf,ntype_real,iproc_tm,tag, &
-                        comm_all,reqs(3),ierr)
-!
-        call MPI_Irecv (rbuf_rp2,lbuf,ntype_real,iproc_tp,tag, &
-                        comm_all,reqs(4),ierr)
-!
-        call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
-!$omp end target data
-!
-        if (iproc_tm.ne.MPI_PROC_NULL) then
-          do concurrent (j=1:np, i=1:nr)
-            a(i, 1,j)=rbuf_rp1(i,j)
-          enddo
-        end if
-!
-        if (iproc_tp.ne.MPI_PROC_NULL) then
-          do concurrent (j=1:np, i=1:nr)
-            a(i,nt,j)=rbuf_rp2(i,j)
-          enddo
-        end if
-!
-      end if
-!
-      call timer_off (c_seam)
-!
-end subroutine
-!#######################################################################
 subroutine seam_gen (a,n1,n2,n3)
 !
 !-----------------------------------------------------------------------
@@ -5863,6 +5708,8 @@ subroutine seam_gen (a,n1,n2,n3)
       real(r_typ), dimension(n2,n3) :: sbuf12,rbuf12
       real(r_typ), dimension(n1,n3) :: sbuf21,rbuf21
       real(r_typ), dimension(n1,n3) :: sbuf22,rbuf22
+      real(r_typ), dimension(n1,n2) :: sbuf31,rbuf31
+      real(r_typ), dimension(n1,n2) :: sbuf32,rbuf32
 !
 !-----------------------------------------------------------------------
 !
@@ -5884,25 +5731,38 @@ subroutine seam_gen (a,n1,n2,n3)
       call timer_on
 !
 ! ****** Seam the third (periodic) dimension.
-! ****** Since halo data is stride-1, no need for buffers.
+!
+!$omp target enter data map(alloc:sbuf31,sbuf32,rbuf31,rbuf32)
 !
       lbuf=n1*n2
 !
-!$omp target data use_device_addr(a)
-      call MPI_Isend (a(:,:,n3-1),lbuf,ntype_real,iproc_pp,tag, &
+      do concurrent (j=1:n2, i=1:n1)
+        sbuf31(i,j)=a(i,j,n3-1)
+        sbuf32(i,j)=a(i,j,   2)
+      enddo
+!
+!$omp target update from(sbuf31,sbuf32)
+      call MPI_Isend (sbuf31,lbuf,ntype_real,iproc_pp,tag, &
                       comm_all,reqs(1),ierr)
 !
-      call MPI_Isend (a(:,:,   2),lbuf,ntype_real,iproc_pm,tag, &
+      call MPI_Isend (sbuf32,lbuf,ntype_real,iproc_pm,tag, &
                       comm_all,reqs(2),ierr)
 !
-      call MPI_Irecv (a(:,:, 1),lbuf,ntype_real,iproc_pm,tag,   &
+      call MPI_Irecv (rbuf31,lbuf,ntype_real,iproc_pm,tag, &
                       comm_all,reqs(3),ierr)
 !
-      call MPI_Irecv (a(:,:,n3),lbuf,ntype_real,iproc_pp,tag,   &
+      call MPI_Irecv (rbuf32,lbuf,ntype_real,iproc_pp,tag, &
                       comm_all,reqs(4),ierr)
 !
       call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
-!$omp end target data
+!$omp target update to(rbuf31,rbuf32)
+!
+      do concurrent (j=1:n2, i=1:n1)
+        a(i,j, 1)=rbuf31(i,j)
+        a(i,j,n3)=rbuf32(i,j)
+      enddo
+!
+!$omp target exit data map(delete:sbuf31,sbuf32,rbuf31,rbuf32)
 !
 ! ****** Seam the first dimension.
 !
@@ -5917,7 +5777,7 @@ subroutine seam_gen (a,n1,n2,n3)
           sbuf12(i,j)=a(   2,i,j)
         enddo
 !
-!$omp target data use_device_addr(sbuf11,sbuf12,rbuf11,rbuf12)
+!$omp target update from(sbuf11,sbuf12)
         call MPI_Isend (sbuf11,lbuf,ntype_real,iproc_rp,tag, &
                         comm_all,reqs(1),ierr)
 !
@@ -5931,7 +5791,7 @@ subroutine seam_gen (a,n1,n2,n3)
                         comm_all,reqs(4),ierr)
 !
         call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
-!$omp end target data
+!$omp target update to(rbuf11,rbuf12)
 !
         if (iproc_rm.ne.MPI_PROC_NULL) then
           do concurrent (j=1:n3, i=1:n2)
@@ -5961,7 +5821,7 @@ subroutine seam_gen (a,n1,n2,n3)
           sbuf22(i,j)=a(i,   2,j)
         enddo
 !
-!$omp target data use_device_addr(sbuf21,sbuf22,rbuf21,rbuf22)
+!$omp target update from(sbuf21,sbuf22)
         call MPI_Isend (sbuf21,lbuf,ntype_real,iproc_tp,tag, &
                         comm_all,reqs(1),ierr)
 !
@@ -5975,7 +5835,7 @@ subroutine seam_gen (a,n1,n2,n3)
                         comm_all,reqs(4),ierr)
 !
         call MPI_Waitall (4,reqs,MPI_STATUSES_IGNORE,ierr)
-!$omp end target data
+!$omp target update to(rbuf21,rbuf22)
 !
         if (iproc_tm.ne.MPI_PROC_NULL) then
           do concurrent (j=1:n3, i=1:n1)
