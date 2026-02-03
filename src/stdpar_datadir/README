@@ -1,9 +1,0 @@
-This version is the same as the stdpar version but includes 
-data directives.  It differs from the main code only by 
-using DC reduce loops instead of OpenMP target loops.
-
-It requires Fortran 2023 standard as it uses "reduce" on 
-do concurrent loops.
-
-
-

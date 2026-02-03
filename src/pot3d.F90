@@ -481,7 +481,7 @@ module vars
 !
 ! ****** Flag to skip the balancing of the flux (for PFSS and
 ! ****** OPEN field options only).
-
+!
       logical :: do_not_balance_flux=.false.
 !
 ! ****** Set format for output files.
@@ -604,7 +604,6 @@ module cusparse_interface
   end subroutine unload_lusol_cusparse
       end interface
 #endif
-!
       integer(c_int) :: cN,cM
 !
 end module
@@ -624,7 +623,7 @@ module matrix_storage_pot3d_solve
       real(r_typ_pc), dimension(:), allocatable :: a_i
 !
       integer, dimension(7) :: a_offsets
-
+!
       integer :: N,M
       real(r_typ_pc), dimension(:), allocatable, target :: a_csr
       real(r_typ_pc), dimension(:), allocatable :: lu_csr
