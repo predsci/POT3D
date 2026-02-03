@@ -314,7 +314,7 @@ void lusol_cusparse(double* restrict x)
   //
   ////////////////////////////////////////////////////////////////////////////////////
 
-#pragma omp target teams distribute parallel for is_device_ptr(x,x_32)
+#pragma omp target teams distribute parallel for
   for (int i=0;i<N_global;i++){
     x_32[i] = (float) x[i];
   }
@@ -359,7 +359,7 @@ void lusol_cusparse(double* restrict x)
   //
   ////////////////////////////////////////////////////////////////////////////////////
 
-#pragma omp target teams distribute parallel for is_device_ptr(x,x_32)
+#pragma omp target teams distribute parallel for
   for (int i=0;i<N_global;i++){
     x[i] = (double) x_32[i];
   }
