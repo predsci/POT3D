@@ -52,7 +52,7 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.6.2'
+      character(*), parameter :: vers  ='4.6.2_stdpar_ompdata'
       character(*), parameter :: update='01/09/2026'
 !
 end module
@@ -5423,11 +5423,9 @@ subroutine set_boundary_points (x,vmask)
         do concurrent (i=1:nr)
           sum0(i)=0
         enddo
-!$omp target teams loop
-        do i=1,nr
+        do concurrent (i=1:nr)
           temp_sum0=0.
-!$omp loop reduction(+:temp_sum0)
-          do k=2,npm1
+          do concurrent (k=2:npm1) reduce(+:temp_sum0)
             temp_sum0=temp_sum0+x(i,2,k)*dph(k)*pl_i
           enddo
           sum0(i)=temp_sum0
@@ -5438,11 +5436,9 @@ subroutine set_boundary_points (x,vmask)
         do concurrent (i=1:nr)
           sum1(i)=0
         enddo
-!$omp target teams loop
-        do i=1,nr
+        do concurrent (i=1:nr)
           temp_sum0=0.
-!$omp loop reduction(+:temp_sum0)
-          do k=2,npm1
+          do concurrent (k=2:npm1) reduce(+:temp_sum0)
             temp_sum0=temp_sum0+x(i,ntm1,k)*dph(k)*pl_i
           enddo
           sum1(i)=temp_sum0
@@ -5576,8 +5572,7 @@ function cgdot (x,y,N)
 !
       cgdot=0.
 !
-!$omp target teams loop reduction(+:cgdot)
-      do i=1,N
+      do concurrent (i=1:N) reduce(+:cgdot)
         cgdot=cgdot+x(i)*y(i)
       enddo
 !
@@ -6260,19 +6255,14 @@ subroutine magnetic_energy
       wr=0.
       wt=0.
       wp=0.
-!$omp target teams loop collapse(3) reduction(+:wr,wt,wp)
-      do k=2,npm1
-        do j=2,ntm1
-          do i=2,nrm1
-            dv=rh(i)**2*drh(i)*dth(j)*sth(j)*dph(k)
-            brav=half*(br(i,j,k)+br(i-1,j,k))
-            btav=half*(bt(i,j,k)+bt(i,j-1,k))
-            bpav=half*(bp(i,j,k)+bp(i,j,k-1))
-            wr=wr+half*brav**2*dv
-            wt=wt+half*btav**2*dv
-            wp=wp+half*bpav**2*dv
-          enddo
-        enddo
+      do concurrent (i=2:nrm1,j=2:ntm1,k=2:npm1) reduce(+:wr,wt,wp)
+        dv=rh(i)**2*drh(i)*dth(j)*sth(j)*dph(k)
+        brav=half*(br(i,j,k)+br(i-1,j,k))
+        btav=half*(bt(i,j,k)+bt(i,j-1,k))
+        bpav=half*(bp(i,j,k)+bp(i,j,k-1))
+        wr=wr+half*brav**2*dv
+        wt=wt+half*btav**2*dv
+        wp=wp+half*bpav**2*dv
       enddo
 !
 ! ****** Sum up all processors into final values and print.
