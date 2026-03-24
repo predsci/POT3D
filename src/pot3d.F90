@@ -52,8 +52,8 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.6.2'
-      character(*), parameter :: update='01/09/2026'
+      character(*), parameter :: vers  ='4.6.3'
+      character(*), parameter :: update='03/23/2026'
 !
 end module
 !#######################################################################
@@ -4266,7 +4266,7 @@ subroutine cgsolve (x,r,N,ierr)
 !
 ! ****** Scratch space for the CG iteration vectors.
 !
-      real(r_typ), dimension(N), target :: p,ap
+      real(r_typ), dimension(:), allocatable, target :: p,ap
 !
 !-----------------------------------------------------------------------
 !
@@ -4279,6 +4279,7 @@ subroutine cgsolve (x,r,N,ierr)
 !-----------------------------------------------------------------------
 !
       ncg=0
+      allocate(p(N),ap(N))
 !$omp target enter data map(alloc:p,ap)
 !
 ! ****** Get the norm of the RHS.
@@ -4298,6 +4299,8 @@ subroutine cgsolve (x,r,N,ierr)
         enddo
         epsn=0.
         ierr=0
+!$omp target exit data map(delete:p,ap)
+        deallocate(p,ap)
         return
       end if
 !
@@ -4356,6 +4359,7 @@ subroutine cgsolve (x,r,N,ierr)
       enddo
 !
 !$omp target exit data map(delete:p,ap)
+      deallocate(p,ap)
 end subroutine
 !#######################################################################
 subroutine ernorm (bdotb,rdotr,ierr)
@@ -7301,5 +7305,11 @@ end subroutine
 ! ### Version 4.6.2, 01/09/2026, modified by RC:
 !
 !       - Updated ifprec checker for Intel GPU compilation.
+!
+! ### Version 4.6.3, 03/23/2026, modified by MS:
+!
+!       - Replaced some stack arrays to allocatable since 
+!         flang does not have a full equivalent to 
+!         "heap-arrays".
 !
 !#######################################################################
