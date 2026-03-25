@@ -52,8 +52,8 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.6.3_stdpar_ompdata'
-      character(*), parameter :: update='03/23/2026'
+      character(*), parameter :: vers  ='4.6.4_stdpar_ompdata'
+      character(*), parameter :: update='03/25/2026'
 !
 end module
 !#######################################################################
@@ -1302,7 +1302,7 @@ subroutine check_input
       if ((is_substring(compiler,'nvfortran') .and. &
            is_substring(compiler_flags,'stdpar=gpu') .and. &
           .not.is_substring(compiler_flags,'cusparse')) .or. &
-          (is_substring(compiler,'ifx') .and. &
+          (is_substring(compiler,'Intel') .and. &
            is_substring(compiler_flags,'spir64'))) then
         if (ifprec.ne.1) then
           if (iamp0) then
@@ -7301,5 +7301,9 @@ end subroutine
 !       - Replaced some stack arrays to allocatable since 
 !         flang does not have a full equivalent to 
 !         "heap-arrays".
+!
+! ### Version 4.6.4, 03/25/2026, modified by RC:
+!
+!       - Fixed issue with detecting Intel compiler.
 !
 !#######################################################################
