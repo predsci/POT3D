@@ -72,6 +72,10 @@ or
 
 If the `cuSparse` library option was used to build the code, than set `ifprec=2` in `pot3d.dat`.  
 If the `cuSparse` library option was NOT used to build the code, it is critical to set `ifprec=1` for efficient performance.
+
+For Intel GPUs, one must set the following ENV variable before running:  
+`export I_MPI_OFFLOAD=2` 
+Intel GPU runs only wrok with ifprec=1.  
   
 ### Memory Requirements 
   
