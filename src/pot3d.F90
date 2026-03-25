@@ -4256,11 +4256,7 @@ subroutine cgsolve (x,r,N,ierr)
 !-----------------------------------------------------------------------
 !
       ncg=0
-<<<<<<< HEAD
-=======
       allocate(p(N),ap(N))
-!$omp target enter data map(alloc:p,ap)
->>>>>>> origin/main
 !
 ! ****** Get the norm of the RHS.
 !
@@ -4338,11 +4334,7 @@ subroutine cgsolve (x,r,N,ierr)
 !
       enddo
 !
-<<<<<<< HEAD
-=======
-!$omp target exit data map(delete:p,ap)
       deallocate(p,ap)
->>>>>>> origin/main
 end subroutine
 !#######################################################################
 subroutine ernorm (bdotb,rdotr,ierr)
