@@ -4275,7 +4275,6 @@ subroutine cgsolve (x,r,N,ierr)
         enddo
         epsn=0.
         ierr=0
-!$omp target exit data map(delete:p,ap)
         deallocate(p,ap)
         return
       end if
