@@ -2,15 +2,16 @@
 
 *.mod
 *.o
-*.err
-*.log
-*.out
 
 Makefile
 
 bin/pot3d
 src/pot3d.F90~
 src/pot3d_cpp.f90
-testsuite/*/run/*
+testsuite/*/run/*.h5
+testsuite/*/run/*.dat
+testsuite/*/run/*.log
+testsuite/*/run/*.err
+testsuite/*/run/*.out
 
 __pycache__/

@@ -1,0 +1,43 @@
+ 
+--------------------------------------------------------------------------------
+ 
+ Processor id =             0
+ 
+ Comm. time in SEAM    =     0.041253
+ Comm. time in CGDOT   =     0.034815
+ Comm. time in SUMPHI  =     0.099318
+ ------------------------------------
+ Total comm. time      =     0.175386
+ 
+ Time used in start-up =     0.086576
+ Time used in i/o      =     0.312318
+ Time used in POTFLD   =     7.973861
+ Time used in AX       =     2.127688
+ Time used in PCLOAD   =     0.004182
+ Time used in PC       =     0.617072
+ ------------------------------------
+ Total time used       =     8.367644
+ 
+--------------------------------------------------------------------------------
+ 
+ Average times:
+ -------------
+ 
+                                      Avg         Min         Max      S. Dev
+                                      ---         ---         ---      ------
+ Avg comm. time in SEAM    =        0.041       0.041       0.041       0.000
+ Avg comm. time in CGDOT   =        0.035       0.035       0.035       0.000
+ Avg comm. time in SUMPHI  =        0.099       0.099       0.099       0.000
+ Avg time used in start-up =        0.087       0.087       0.087       0.000
+ Avg time used in i/o      =        0.312       0.312       0.312       0.000
+ Avg time used in POTFLD   =        7.974       7.974       7.974       0.000
+ Avg time used in AX       =        2.128       2.128       2.128       0.000
+ Avg time used in PCLOAD   =        0.004       0.004       0.004       0.000
+ Avg time used in PC       =        0.617       0.617       0.617       0.000
+ Avg total time            =        8.368       8.368       8.368       0.000
+ 
+ Average time used per proc  =     8.367644
+ Average comm. time per proc =     0.175386
+ 
+--------------------------------------------------------------------------------
+ 
