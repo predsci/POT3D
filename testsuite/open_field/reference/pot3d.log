@@ -1,0 +1,476 @@
+ 
+ POT3D Version 4.6.4, updated on 03/25/2026
+ 
+ Compiler:
+ nvfortran 26.3-0
+ 
+ Compiler Flags:
+ pot3d_cpp.f90 -march=native -mcpu=native -tp native -O3 -Mvect=simd -Mflushz -Mcache_align -Mfactorize -Mno-signed-zeros -Minline_cpu_f -mp=gpu -acc=gpu -stdpar=gpu -gpu=ccnative,mem:separate -Minfo=accel -I/opt/psi/nv/ext_deps/deps/hdf5/include -c -o pot3d.o -I/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/comm_libs/13.1/hpcx/hpcx-2.25.1/ompi/include -I/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/comm_libs/13.1/hpcx/hpcx-2.25.1/ompi/lib
+ 
+ ### COMMENT from CHECK_INPUT:
+ ### Field solve type:
+ 
+ OPTION = open            
+ 
+ Total number of MPI ranks =             1
+ 
+ Number of MPI ranks in r =             1
+ Number of MPI ranks in t =             1
+ Number of MPI ranks in p =             1
+ 
+ Global mesh dimension in r =           121
+ Global mesh dimension in t =           181
+ Global mesh dimension in p =           361
+ 
+ Average # of r mesh pts per rank =  121.0
+ Average # of t mesh pts per rank =  181.0
+ Average # of p mesh pts per rank =  361.0
+ 
+ Estimated load imbalance =   0.00 %
+ 
+ ### COMMENT from READBR:
+ ### Reading Br file: br_hmi_synoptic_mr_polfil_720s_cr2131_181x361_smooth2.h5
+ 
+ ### COMMENT from READBR:
+ ### Computed flux balance:
+ 
+ Positive flux =     21.04548815944511     
+ Negative flux =    -21.04541750453284     
+ 
+ ### COMMENT from POT3D:
+ ### Starting PCG solve.
+ 
+ Iteration:        0   Residual:   1.000000000000000E+00
+ Iteration:       10   Residual:   8.924625077885961E-01
+ Iteration:       20   Residual:   7.076685760319742E-01
+ Iteration:       30   Residual:   6.408457798107092E-01
+ Iteration:       40   Residual:   6.143388161328897E-01
+ Iteration:       50   Residual:   5.819008938415225E-01
+ Iteration:       60   Residual:   5.410724875412295E-01
+ Iteration:       70   Residual:   4.995146311604057E-01
+ Iteration:       80   Residual:   4.687563877086020E-01
+ Iteration:       90   Residual:   4.403934510150063E-01
+ Iteration:      100   Residual:   4.116606565764405E-01
+ Iteration:      110   Residual:   3.896778963792246E-01
+ Iteration:      120   Residual:   3.702975266066815E-01
+ Iteration:      130   Residual:   3.524190812310104E-01
+ Iteration:      140   Residual:   3.308893160437001E-01
+ Iteration:      150   Residual:   3.131244177601835E-01
+ Iteration:      160   Residual:   2.989398933198778E-01
+ Iteration:      170   Residual:   2.840375627819369E-01
+ Iteration:      180   Residual:   2.756241156789703E-01
+ Iteration:      190   Residual:   2.610578619007133E-01
+ Iteration:      200   Residual:   2.491966941002617E-01
+ Iteration:      210   Residual:   2.410908484507096E-01
+ Iteration:      220   Residual:   2.318259220711632E-01
+ Iteration:      230   Residual:   2.223447509618878E-01
+ Iteration:      240   Residual:   2.116538042022546E-01
+ Iteration:      250   Residual:   2.061758646340786E-01
+ Iteration:      260   Residual:   1.985852125813955E-01
+ Iteration:      270   Residual:   1.910294478097752E-01
+ Iteration:      280   Residual:   1.833849141889390E-01
+ Iteration:      290   Residual:   1.760745555845269E-01
+ Iteration:      300   Residual:   1.658387318988210E-01
+ Iteration:      310   Residual:   1.264315831683148E-01
+ Iteration:      320   Residual:   1.300293184105824E-01
+ Iteration:      330   Residual:   1.347901397344326E-01
+ Iteration:      340   Residual:   1.390853280612314E-01
+ Iteration:      350   Residual:   1.408727441848955E-01
+ Iteration:      360   Residual:   1.420243870194415E-01
+ Iteration:      370   Residual:   1.421909084374186E-01
+ Iteration:      380   Residual:   1.515399286577403E-01
+ Iteration:      390   Residual:   1.476258737967085E-01
+ Iteration:      400   Residual:   1.542686323410387E-01
+ Iteration:      410   Residual:   1.558345317377601E-01
+ Iteration:      420   Residual:   1.515802684848655E-01
+ Iteration:      430   Residual:   1.515227795052459E-01
+ Iteration:      440   Residual:   1.578544178728370E-01
+ Iteration:      450   Residual:   1.578226738005262E-01
+ Iteration:      460   Residual:   1.539863640821343E-01
+ Iteration:      470   Residual:   1.501802757182845E-01
+ Iteration:      480   Residual:   1.564177849095509E-01
+ Iteration:      490   Residual:   1.479173239926469E-01
+ Iteration:      500   Residual:   1.326294492655071E-01
+ Iteration:      510   Residual:   1.288415182900076E-01
+ Iteration:      520   Residual:   1.404000632840874E-01
+ Iteration:      530   Residual:   1.573792670026912E-01
+ Iteration:      540   Residual:   1.620241799731405E-01
+ Iteration:      550   Residual:   1.464382834177151E-01
+ Iteration:      560   Residual:   1.217753905750069E-01
+ Iteration:      570   Residual:   9.572125185995593E-02
+ Iteration:      580   Residual:   7.384015447881241E-02
+ Iteration:      590   Residual:   5.989631169821297E-02
+ Iteration:      600   Residual:   5.240571508626410E-02
+ Iteration:      610   Residual:   4.864363334497541E-02
+ Iteration:      620   Residual:   4.479080119203194E-02
+ Iteration:      630   Residual:   3.762613433395225E-02
+ Iteration:      640   Residual:   3.537393723846890E-02
+ Iteration:      650   Residual:   3.244450560349325E-02
+ Iteration:      660   Residual:   3.144811212668754E-02
+ Iteration:      670   Residual:   2.956816283138516E-02
+ Iteration:      680   Residual:   2.881692686245092E-02
+ Iteration:      690   Residual:   2.681950106122442E-02
+ Iteration:      700   Residual:   2.464713685216839E-02
+ Iteration:      710   Residual:   2.216177216599973E-02
+ Iteration:      720   Residual:   1.899178467835261E-02
+ Iteration:      730   Residual:   1.620222229987072E-02
+ Iteration:      740   Residual:   1.456207458070006E-02
+ Iteration:      750   Residual:   1.401607600885779E-02
+ Iteration:      760   Residual:   1.427190127273602E-02
+ Iteration:      770   Residual:   1.500348347589981E-02
+ Iteration:      780   Residual:   1.492247242510549E-02
+ Iteration:      790   Residual:   1.466945723554488E-02
+ Iteration:      800   Residual:   1.623219436961895E-02
+ Iteration:      810   Residual:   1.769692051049176E-02
+ Iteration:      820   Residual:   1.753792134613908E-02
+ Iteration:      830   Residual:   1.741813071428622E-02
+ Iteration:      840   Residual:   1.794925974263187E-02
+ Iteration:      850   Residual:   1.943315016701280E-02
+ Iteration:      860   Residual:   2.133412853561868E-02
+ Iteration:      870   Residual:   2.244561354033703E-02
+ Iteration:      880   Residual:   2.241301709952488E-02
+ Iteration:      890   Residual:   1.995049259827278E-02
+ Iteration:      900   Residual:   1.774262406538694E-02
+ Iteration:      910   Residual:   1.545877265234795E-02
+ Iteration:      920   Residual:   1.299679363392724E-02
+ Iteration:      930   Residual:   1.126611386007126E-02
+ Iteration:      940   Residual:   1.044174487776911E-02
+ Iteration:      950   Residual:   8.770685731532791E-03
+ Iteration:      960   Residual:   7.991254142001258E-03
+ Iteration:      970   Residual:   6.605414510914609E-03
+ Iteration:      980   Residual:   6.570315974974978E-03
+ Iteration:      990   Residual:   5.739600600103130E-03
+ Iteration:     1000   Residual:   4.694171947271763E-03
+ Iteration:     1010   Residual:   4.005102804050265E-03
+ Iteration:     1020   Residual:   3.625737023843615E-03
+ Iteration:     1030   Residual:   3.417212578047174E-03
+ Iteration:     1040   Residual:   3.182924765741294E-03
+ Iteration:     1050   Residual:   2.916928434982434E-03
+ Iteration:     1060   Residual:   2.750657490651029E-03
+ Iteration:     1070   Residual:   2.681478442180836E-03
+ Iteration:     1080   Residual:   2.753829109871931E-03
+ Iteration:     1090   Residual:   2.969348497459122E-03
+ Iteration:     1100   Residual:   2.747179475870048E-03
+ Iteration:     1110   Residual:   2.434909453699432E-03
+ Iteration:     1120   Residual:   2.385550558002267E-03
+ Iteration:     1130   Residual:   2.362987749291334E-03
+ Iteration:     1140   Residual:   2.218777116654497E-03
+ Iteration:     1150   Residual:   2.108560595324744E-03
+ Iteration:     1160   Residual:   2.109099655487151E-03
+ Iteration:     1170   Residual:   2.095032425099154E-03
+ Iteration:     1180   Residual:   1.968204014221968E-03
+ Iteration:     1190   Residual:   1.857165608953162E-03
+ Iteration:     1200   Residual:   1.881090098578415E-03
+ Iteration:     1210   Residual:   1.912552948979226E-03
+ Iteration:     1220   Residual:   1.862262886374524E-03
+ Iteration:     1230   Residual:   1.888191471869741E-03
+ Iteration:     1240   Residual:   1.916139921701004E-03
+ Iteration:     1250   Residual:   1.795938051247323E-03
+ Iteration:     1260   Residual:   1.817282458588881E-03
+ Iteration:     1270   Residual:   1.730028159029778E-03
+ Iteration:     1280   Residual:   1.691986415273879E-03
+ Iteration:     1290   Residual:   1.480218655010080E-03
+ Iteration:     1300   Residual:   1.340482409538907E-03
+ Iteration:     1310   Residual:   1.192687966082039E-03
+ Iteration:     1320   Residual:   1.116690162021783E-03
+ Iteration:     1330   Residual:   1.099258447619541E-03
+ Iteration:     1340   Residual:   1.038108991938921E-03
+ Iteration:     1350   Residual:   9.268749148296522E-04
+ Iteration:     1360   Residual:   7.825717082104559E-04
+ Iteration:     1370   Residual:   6.583715898808131E-04
+ Iteration:     1380   Residual:   5.823414190173304E-04
+ Iteration:     1390   Residual:   5.184181659906610E-04
+ Iteration:     1400   Residual:   4.718328020759242E-04
+ Iteration:     1410   Residual:   4.706118043270597E-04
+ Iteration:     1420   Residual:   4.661688759657973E-04
+ Iteration:     1430   Residual:   4.397363763438722E-04
+ Iteration:     1440   Residual:   4.122522343443505E-04
+ Iteration:     1450   Residual:   3.946919810713417E-04
+ Iteration:     1460   Residual:   3.934188325909174E-04
+ Iteration:     1470   Residual:   3.918389819825705E-04
+ Iteration:     1480   Residual:   4.011190572368332E-04
+ Iteration:     1490   Residual:   3.715758968116038E-04
+ Iteration:     1500   Residual:   3.616086365295064E-04
+ Iteration:     1510   Residual:   3.452435751277921E-04
+ Iteration:     1520   Residual:   3.126061853094911E-04
+ Iteration:     1530   Residual:   2.903875353612743E-04
+ Iteration:     1540   Residual:   2.798771081341694E-04
+ Iteration:     1550   Residual:   3.014296380189151E-04
+ Iteration:     1560   Residual:   3.131123274150582E-04
+ Iteration:     1570   Residual:   3.103783234128242E-04
+ Iteration:     1580   Residual:   3.140234648703689E-04
+ Iteration:     1590   Residual:   3.013706620836989E-04
+ Iteration:     1600   Residual:   3.053706905937027E-04
+ Iteration:     1610   Residual:   2.941975420125561E-04
+ Iteration:     1620   Residual:   2.854006992797111E-04
+ Iteration:     1630   Residual:   2.548059741909391E-04
+ Iteration:     1640   Residual:   2.113730472469992E-04
+ Iteration:     1650   Residual:   1.908123021985550E-04
+ Iteration:     1660   Residual:   1.773432784139351E-04
+ Iteration:     1670   Residual:   1.587747344849203E-04
+ Iteration:     1680   Residual:   1.455385370005781E-04
+ Iteration:     1690   Residual:   1.292172104476808E-04
+ Iteration:     1700   Residual:   1.222822931113591E-04
+ Iteration:     1710   Residual:   1.166208734148791E-04
+ Iteration:     1720   Residual:   1.111831123272236E-04
+ Iteration:     1730   Residual:   1.110096189820847E-04
+ Iteration:     1740   Residual:   1.016196339967766E-04
+ Iteration:     1750   Residual:   9.435071755320204E-05
+ Iteration:     1760   Residual:   8.470569263154841E-05
+ Iteration:     1770   Residual:   7.732724869572910E-05
+ Iteration:     1780   Residual:   7.203298364056996E-05
+ Iteration:     1790   Residual:   7.345627616557054E-05
+ Iteration:     1800   Residual:   7.547706238499846E-05
+ Iteration:     1810   Residual:   7.292398983520523E-05
+ Iteration:     1820   Residual:   7.291542680930819E-05
+ Iteration:     1830   Residual:   7.456873827978031E-05
+ Iteration:     1840   Residual:   7.745344734830980E-05
+ Iteration:     1850   Residual:   7.701435889437208E-05
+ Iteration:     1860   Residual:   7.754559010000737E-05
+ Iteration:     1870   Residual:   7.551432727803143E-05
+ Iteration:     1880   Residual:   7.373333634014739E-05
+ Iteration:     1890   Residual:   7.324446499719155E-05
+ Iteration:     1900   Residual:   7.226854950878882E-05
+ Iteration:     1910   Residual:   6.592769056991388E-05
+ Iteration:     1920   Residual:   6.425999251939356E-05
+ Iteration:     1930   Residual:   6.221859804809417E-05
+ Iteration:     1940   Residual:   6.010619457348587E-05
+ Iteration:     1950   Residual:   5.562603468804216E-05
+ Iteration:     1960   Residual:   4.976270580215923E-05
+ Iteration:     1970   Residual:   4.184698069807154E-05
+ Iteration:     1980   Residual:   3.585684117172177E-05
+ Iteration:     1990   Residual:   3.111191674048450E-05
+ Iteration:     2000   Residual:   2.786963509759903E-05
+ Iteration:     2010   Residual:   2.548526827777417E-05
+ Iteration:     2020   Residual:   2.597583408173707E-05
+ Iteration:     2030   Residual:   2.630580254195759E-05
+ Iteration:     2040   Residual:   2.623103535224366E-05
+ Iteration:     2050   Residual:   2.711164792870071E-05
+ Iteration:     2060   Residual:   2.862301837556733E-05
+ Iteration:     2070   Residual:   3.063722860363593E-05
+ Iteration:     2080   Residual:   2.973852048031397E-05
+ Iteration:     2090   Residual:   2.813382933908189E-05
+ Iteration:     2100   Residual:   2.693730060889797E-05
+ Iteration:     2110   Residual:   2.602262832366343E-05
+ Iteration:     2120   Residual:   2.555696648790740E-05
+ Iteration:     2130   Residual:   2.443942753361984E-05
+ Iteration:     2140   Residual:   2.296283375163624E-05
+ Iteration:     2150   Residual:   2.066469148757751E-05
+ Iteration:     2160   Residual:   1.865976756299806E-05
+ Iteration:     2170   Residual:   1.742627555715657E-05
+ Iteration:     2180   Residual:   1.770501986737840E-05
+ Iteration:     2190   Residual:   1.742024575888018E-05
+ Iteration:     2200   Residual:   1.570697688531476E-05
+ Iteration:     2210   Residual:   1.439354443646874E-05
+ Iteration:     2220   Residual:   1.220296195086641E-05
+ Iteration:     2230   Residual:   1.100543975452703E-05
+ Iteration:     2240   Residual:   1.068969107101828E-05
+ Iteration:     2250   Residual:   1.105286031561115E-05
+ Iteration:     2260   Residual:   1.210949338419600E-05
+ Iteration:     2270   Residual:   1.310758654002298E-05
+ Iteration:     2280   Residual:   1.303018658181165E-05
+ Iteration:     2290   Residual:   1.265740067356139E-05
+ Iteration:     2300   Residual:   1.184634946896331E-05
+ Iteration:     2310   Residual:   1.087015798897643E-05
+ Iteration:     2320   Residual:   1.005240514457030E-05
+ Iteration:     2330   Residual:   9.239011091442537E-06
+ Iteration:     2340   Residual:   9.071785934121957E-06
+ Iteration:     2350   Residual:   8.409067838786345E-06
+ Iteration:     2360   Residual:   7.856224919494830E-06
+ Iteration:     2370   Residual:   7.463980682306728E-06
+ Iteration:     2380   Residual:   6.535114212632694E-06
+ Iteration:     2390   Residual:   5.926492940059083E-06
+ Iteration:     2400   Residual:   5.252546266855616E-06
+ Iteration:     2410   Residual:   4.769353191149195E-06
+ Iteration:     2420   Residual:   4.564823295789168E-06
+ Iteration:     2430   Residual:   4.380985175487955E-06
+ Iteration:     2440   Residual:   4.623996403398808E-06
+ Iteration:     2450   Residual:   4.580524111327213E-06
+ Iteration:     2460   Residual:   4.154560177428749E-06
+ Iteration:     2470   Residual:   3.939997651217417E-06
+ Iteration:     2480   Residual:   3.792523586960448E-06
+ Iteration:     2490   Residual:   3.601188311207112E-06
+ Iteration:     2500   Residual:   3.369900372047796E-06
+ Iteration:     2510   Residual:   3.080364894522650E-06
+ Iteration:     2520   Residual:   2.876726913186685E-06
+ Iteration:     2530   Residual:   2.952627329238817E-06
+ Iteration:     2540   Residual:   2.828819110869536E-06
+ Iteration:     2550   Residual:   2.659515178037409E-06
+ Iteration:     2560   Residual:   2.598565158841317E-06
+ Iteration:     2570   Residual:   2.520068469685099E-06
+ Iteration:     2580   Residual:   2.478821545599852E-06
+ Iteration:     2590   Residual:   2.449234637591426E-06
+ Iteration:     2600   Residual:   2.348253587561546E-06
+ Iteration:     2610   Residual:   2.335919276285805E-06
+ Iteration:     2620   Residual:   2.249478905384476E-06
+ Iteration:     2630   Residual:   2.104672198439235E-06
+ Iteration:     2640   Residual:   1.972691664717999E-06
+ Iteration:     2650   Residual:   1.708282395843291E-06
+ Iteration:     2660   Residual:   1.561260685035489E-06
+ Iteration:     2670   Residual:   1.463008311236585E-06
+ Iteration:     2680   Residual:   1.332245341991725E-06
+ Iteration:     2690   Residual:   1.228091380992175E-06
+ Iteration:     2700   Residual:   1.128730685784174E-06
+ Iteration:     2710   Residual:   9.914273191445907E-07
+ Iteration:     2720   Residual:   8.952075871712377E-07
+ Iteration:     2730   Residual:   8.161558083490462E-07
+ Iteration:     2740   Residual:   7.769376239623513E-07
+ Iteration:     2750   Residual:   7.370813617497051E-07
+ Iteration:     2760   Residual:   7.060689517967089E-07
+ Iteration:     2770   Residual:   6.834646318078953E-07
+ Iteration:     2780   Residual:   7.046551064062492E-07
+ Iteration:     2790   Residual:   7.154672784227226E-07
+ Iteration:     2800   Residual:   6.998495569380034E-07
+ Iteration:     2810   Residual:   6.865853964137005E-07
+ Iteration:     2820   Residual:   6.752054020099166E-07
+ Iteration:     2830   Residual:   5.879500686804809E-07
+ Iteration:     2840   Residual:   5.108289286164126E-07
+ Iteration:     2850   Residual:   4.585198996591689E-07
+ Iteration:     2860   Residual:   4.101621502116306E-07
+ Iteration:     2870   Residual:   4.085772432180948E-07
+ Iteration:     2880   Residual:   4.139152756066755E-07
+ Iteration:     2890   Residual:   4.142952312270881E-07
+ Iteration:     2900   Residual:   4.201248261835250E-07
+ Iteration:     2910   Residual:   3.772222610072664E-07
+ Iteration:     2920   Residual:   3.345489116205666E-07
+ Iteration:     2930   Residual:   3.083999362438820E-07
+ Iteration:     2940   Residual:   2.996067798521005E-07
+ Iteration:     2950   Residual:   2.822663593243181E-07
+ Iteration:     2960   Residual:   2.564462671754033E-07
+ Iteration:     2970   Residual:   2.295340247047547E-07
+ Iteration:     2980   Residual:   2.197139529108613E-07
+ Iteration:     2990   Residual:   2.173607958450870E-07
+ Iteration:     3000   Residual:   2.139690102883560E-07
+ Iteration:     3010   Residual:   2.059974445304942E-07
+ Iteration:     3020   Residual:   1.896732357363234E-07
+ Iteration:     3030   Residual:   1.767625874448824E-07
+ Iteration:     3040   Residual:   1.665740946818415E-07
+ Iteration:     3050   Residual:   1.581813301747127E-07
+ Iteration:     3060   Residual:   1.438636824046068E-07
+ Iteration:     3070   Residual:   1.256543265261668E-07
+ Iteration:     3080   Residual:   1.213025027279704E-07
+ Iteration:     3090   Residual:   1.170115580062416E-07
+ Iteration:     3100   Residual:   1.186482047196403E-07
+ Iteration:     3110   Residual:   1.217573581156526E-07
+ Iteration:     3120   Residual:   1.145406592028642E-07
+ Iteration:     3130   Residual:   1.084960135946424E-07
+ Iteration:     3140   Residual:   1.068858914075214E-07
+ Iteration:     3150   Residual:   9.752420359467593E-08
+ Iteration:     3160   Residual:   8.662581607294257E-08
+ Iteration:     3170   Residual:   7.827729515070060E-08
+ Iteration:     3180   Residual:   7.108272214608190E-08
+ Iteration:     3190   Residual:   6.358626213890923E-08
+ Iteration:     3200   Residual:   5.733393950255015E-08
+ Iteration:     3210   Residual:   5.043768877002821E-08
+ Iteration:     3220   Residual:   4.624074858319854E-08
+ Iteration:     3230   Residual:   4.638835657641247E-08
+ Iteration:     3240   Residual:   4.463750704099869E-08
+ Iteration:     3250   Residual:   4.355034595266316E-08
+ Iteration:     3260   Residual:   4.202520295580265E-08
+ Iteration:     3270   Residual:   3.948356604236067E-08
+ Iteration:     3280   Residual:   3.741812685579755E-08
+ Iteration:     3290   Residual:   3.479827501538587E-08
+ Iteration:     3300   Residual:   3.325302756143993E-08
+ Iteration:     3310   Residual:   3.285488209249918E-08
+ Iteration:     3320   Residual:   3.313720447464597E-08
+ Iteration:     3330   Residual:   3.192323469770317E-08
+ Iteration:     3340   Residual:   3.049011017108837E-08
+ Iteration:     3350   Residual:   2.768409536466461E-08
+ Iteration:     3360   Residual:   2.720136499450415E-08
+ Iteration:     3370   Residual:   2.625289836776989E-08
+ Iteration:     3380   Residual:   2.549523703379708E-08
+ Iteration:     3390   Residual:   2.559373501849700E-08
+ Iteration:     3400   Residual:   2.454315094603873E-08
+ Iteration:     3410   Residual:   2.193320018664541E-08
+ Iteration:     3420   Residual:   1.975157851975009E-08
+ Iteration:     3430   Residual:   1.804291799410340E-08
+ Iteration:     3440   Residual:   1.555028115579393E-08
+ Iteration:     3450   Residual:   1.373208561072074E-08
+ Iteration:     3460   Residual:   1.232447140279545E-08
+ Iteration:     3470   Residual:   1.184567054330292E-08
+ Iteration:     3480   Residual:   1.074247403656380E-08
+ Iteration:     3490   Residual:   1.031460437164240E-08
+ Iteration:     3500   Residual:   1.000958118428093E-08
+ Iteration:     3510   Residual:   9.377221861049890E-09
+ Iteration:     3520   Residual:   8.652219141340696E-09
+ Iteration:     3530   Residual:   8.170322279549587E-09
+ Iteration:     3540   Residual:   8.171879527642735E-09
+ Iteration:     3550   Residual:   8.473988639171593E-09
+ Iteration:     3560   Residual:   8.273815182471144E-09
+ Iteration:     3570   Residual:   8.165022394446550E-09
+ Iteration:     3580   Residual:   8.040975072354402E-09
+ Iteration:     3590   Residual:   8.224343557524623E-09
+ Iteration:     3600   Residual:   8.224876368795668E-09
+ Iteration:     3610   Residual:   7.594383543702719E-09
+ Iteration:     3620   Residual:   6.420510906793536E-09
+ Iteration:     3630   Residual:   5.552820101778793E-09
+ Iteration:     3640   Residual:   5.119529102860428E-09
+ Iteration:     3650   Residual:   5.021636881797477E-09
+ Iteration:     3660   Residual:   4.799042434420382E-09
+ Iteration:     3670   Residual:   4.554650147812277E-09
+ Iteration:     3680   Residual:   4.240025178206370E-09
+ Iteration:     3690   Residual:   3.981530559473150E-09
+ Iteration:     3700   Residual:   3.636415550878209E-09
+ Iteration:     3710   Residual:   3.444081574615541E-09
+ Iteration:     3720   Residual:   3.302698551074347E-09
+ Iteration:     3730   Residual:   3.125389462898357E-09
+ Iteration:     3740   Residual:   3.080434813843860E-09
+ Iteration:     3750   Residual:   3.032670506112731E-09
+ Iteration:     3760   Residual:   2.907784602436285E-09
+ Iteration:     3770   Residual:   2.946325582644619E-09
+ Iteration:     3780   Residual:   3.036468156509448E-09
+ Iteration:     3790   Residual:   3.170487511364159E-09
+ Iteration:     3800   Residual:   3.251765692175673E-09
+ Iteration:     3810   Residual:   3.263981977955403E-09
+ Iteration:     3820   Residual:   2.961213021896389E-09
+ Iteration:     3830   Residual:   2.683916445390162E-09
+ Iteration:     3840   Residual:   2.386912733567877E-09
+ Iteration:     3850   Residual:   2.171191997652713E-09
+ Iteration:     3860   Residual:   2.057497301778322E-09
+ Iteration:     3870   Residual:   1.928210067895945E-09
+ Iteration:     3880   Residual:   1.656881126922226E-09
+ Iteration:     3890   Residual:   1.494740728239713E-09
+ Iteration:     3900   Residual:   1.367452182574010E-09
+ Iteration:     3910   Residual:   1.304704035724561E-09
+ Iteration:     3920   Residual:   1.235987876101580E-09
+ Iteration:     3930   Residual:   1.245556104478917E-09
+ Iteration:     3940   Residual:   1.231903244779432E-09
+ Iteration:     3950   Residual:   1.214781274102555E-09
+ Iteration:     3960   Residual:   1.200139126790002E-09
+ Iteration:     3970   Residual:   1.127221537636958E-09
+ Iteration:     3980   Residual:   1.093151404883808E-09
+ Iteration:     3990   Residual:   1.096452529750838E-09
+ Iteration:     4000   Residual:   1.084269660231977E-09
+ Iteration:     4010   Residual:   1.085748233090484E-09
+ Iteration:     4020   Residual:   1.096715236173797E-09
+ Iteration:     4030   Residual:   1.088889779120444E-09
+ Iteration:     4040   Residual:   1.047899097129980E-09
+ Iteration:     4049   Residual:   9.964495395760987E-10
+ 
+ ### COMMENT from SOLVE:
+ ### The field solver converged.
+ Number of iterations =          4049
+ 
+ ### COMMENT from WRITE_SOLUTION:
+ 
+ Writing Br to file: br.h5
+ 
+ ### COMMENT from WRITE_SOLUTION:
+ 
+ Writing Bt to file: bt.h5
+ 
+ ### COMMENT from WRITE_SOLUTION:
+ 
+ Writing Bp to file: bp.h5
+ 
+ ### COMMENT from GETB:
+ ### Magnetic energy diagnostic:
+ 
+Energy in Br**2 = 7.9971811493770559E+01
+Energy in Bt**2 = 6.5389277608946408E+00
+Energy in Bp**2 = 3.4969048530571545E+00
+Magnetic energy = 9.0007644107722356E+01
+ 
+ Total time:                  10.777358
+ Max Comm/Imbalance time:      0.194241
+ 

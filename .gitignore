@@ -2,9 +2,6 @@
 
 *.mod
 *.o
-*.err
-*.log
-*.out
 
 Makefile
 
