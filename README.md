@@ -32,16 +32,12 @@ Given a configure script `conf/my_custom_build.conf`, the build script is invoke
     
 ### Validate Installation 
   
-After building the code, you can test it is working by running `./validate.sh`.  
-This will perform a small run case using 1 MPI rank.
-To perform the validation with more ranks, use `./validate.sh <NP>` where `<NP>` is the number of ranks requested.
-  
-The run is performed in `testsuite/validation/run/`.
-  
-The result is checked against a reference solution (in `/runs/validation/validation`) and a PASS/FAIL message will be displayed.
+After building the code, it can be tested by running the testsuite.  
+Enter the `testsuite` directory and run:  
+`./run_test_suite.sh -np=<N>`  
+where "<N>" is the number of MPI ranks to use.  
+To see available options, run `run_test_suite.sh -h`  
 
-The validation run sets `ifprec=2` but if the code is compiled for NVIDIA GPUs without cuSparse, it will be automatically changed to `ifprec=1`.
-  
 --------------------------------
   
 ## HOW TO USE POT3D  
@@ -57,11 +53,17 @@ and run the command:
   `<MPI_LAUNCHER> -np <N> ./pot3d `  
 where `<N>` is the total number of MPI ranks to use (typically equal to the number of CPU cores) and `<MPI_LAUNCHER>` is your MPI run command (e.g. `mpiexec`,`mpirun`, `ibrun`, `srun`, etc).  
 For example:  `mpiexec -np 1024 ./pot3d`
-  
-**Important!**  
-For CPU runs, set `ifprec=2` in the `pot3d.dat` input file.  
-For GPU runs, set `ifprec=1` in the `pot3d.dat` input file, unless you build with the `cuSparse` library option, in which case you should set `ifprec=2`.
-  
+
+### Solver Options  
+
+POT3D uses a preconditoned Conjugate Gradient solver with two preconditioner options:  
+1) `ifprec=1`: Diagonal scaling.
+2) `ifprec=2`: Non-overlapping ILU0  
+Typically, using `ifprec=2` will run POT3D faster than `ifprec=1`. 
+It uses much more memory and, for NVIDIA GPUs, requires building with the `cuSparse` library.  
+For Intel and AMD GPUs, it is currently not available.  
+POT3D will auto-detect how it is being built, and may override `ifprec` to the option best suited for the current build.
+    
 ### Running POT3D on GPUs 
   
 For standard cases, one should launch the code such that the number of MPI ranks per node is equal to the number of GPUs per node  
@@ -70,21 +72,22 @@ e.g.
 or  
 `mpiexec -np <N> --npersocket 2 ./pot3d`  
 
-If the `cuSparse` library option was used to build the code, than set `ifprec=2` in `pot3d.dat`.  
-If the `cuSparse` library option was NOT used to build the code, it is critical to set `ifprec=1` for efficient performance.
-
-For Intel GPUs, one must set the following ENV variable before running:  
-`export I_MPI_OFFLOAD=2` 
-Intel GPU runs only wrok with ifprec=1.  
+If the `cuSparse` library option was used to build the code, than `ifprec=2` can be set in `pot3d.dat`.  
   
-### Memory Requirements 
+For Intel GPUs, one must set the following ENV variable before running:  
+`export I_MPI_OFFLOAD=1`  
+  
+For AMD GPUs with the `amdflang` compiler, currently, the `no-gpu-mpi` branch must be used.  
+    
+### Memory Requirements  
   
 To estimate how much memory (RAM) is needed for a run, compute:  
   
-`memory-needed = nr*nt*np*8*15/1024/1000/1000 GB`  
+`memory-needed = nr*nt*np*8*13.6/1000/1000/1000 GB`  
   
 where `nr`, `nt`, and `np` are the chosen problem sizes in the `r`, `theta`, and `phi` dimension.  
-Note that this estimate is when using `ifprec=1`.  If using `ifprec=2`, the required memory is ~2x higher on the CPU, and even higher when using `cuSparse` on the GPU.
+Note that this estimate is when using `ifprec=1`.  
+If using `ifprec=2`, the required memory is over 2x higher.
   
 ### Solution Output 
   
@@ -99,46 +102,38 @@ Some useful python scripts for reading and plotting the POT3D input data, and re
   
 -----------------------------
   
-## EXAMPLES and TESTSUITE 
+## BENCHMARKS AND TESTSUITE
   
-### Examples 
+### Benchmarks 
   
-In the `examples` folder, we provide ready-to-run examples of three use cases of `POT3D` in the following folders:
-  
-1. **`/potential_field_source_surface`**  
-A standard PFSS run with a source surface radii of 2.5 Rsun.
-2. **`/potential_field_current_sheet`**  
-A standard PFCS run using the outer boundary of the PFSS example as its inner boundary condition, with a domain that extends to 30 Rsun. The magnetic field solution produced is unsigned.  
-3. **`/open_field`**  
-An example of computing the "open field" model from the solar surface out to 30 Rsun using the same input surface Br as the PFSS example. The magnetic field solution produced is unsigned.  
+In the `benchmarks` folder, we provide large cases of various size that can be used to benchmark the performance of `POT3D`.  
+
+The following is a list of the included benchmark runs, their problem size, and their memory requirements:
+
+1. **`bench_tiny`**  
+Grid size:  173x361x1171 =  73.2 million cells  
+Memory (RAM) needed (using `ifprec=1`):   ~7.96 GB
+2. **`isc2023`**  
+Grid size:  325x450x2050 = 299.8 million cells   
+Memory (RAM) needed (using `ifprec=1`):  ~32.62 GB  
+ 
 
 ### Testsuite 
 
-In the `testsuite` folder, we provide test cases of various sizes that can be used to validate and test the performance of `POT3D`.  
-Each test case contains an `input` folder with the run input files, a `run` folder used to run the test, and a `validation` folder containing the output diagnotics used to validate the test, as well as a text file named `validation_run_information.txt`  containing information on how the validation run was computed (system, compiler, number of ranks, etc.) with performance details.  Note that all tests are set to use `ifprec=1` only.  An option to use `ifprec=2` will be added later.
+In the `testsuite` folder, we provide the following example runs of `POT3D`:
 
-To run a test, use the included script `run_test.sh` as:  
-`run_test.sh <TEST> <NP>`  
-where `<TEST>` is the test folder name and `<NP>` is the number of MPI ranks to use.  The test will run and then use the included script `bin/pot3d_validate.sh` that takes two `pot3d.out` files and compares their magnetic energy values in order to validate the run results.  
+1. **`/potential_field_source_surface`**  
+A standard PFSS run with a source surface radii of 2.5 Rs.
+2. **`/potential_field_current_sheet`**  
+A standard PFCS run using the outer boundary of the PFSS example as its inner boundary condition, with a domain that extends to 30 Rs. The magnetic field solution produced is unsigned.  
+3. **`/open_field`**  
+An example of computing the "open field" model from the solar surface out to 20 Rs using the same input surface Br as the PFSS example. The magnetic field solution produced is unsigned. 
 
-The following is a list of the included tests, and their problem size and memory requirements:
+Each test case contains an `input` folder with the run input files, a `run` folder used to run the test, and a `reference` folder containing the output diagnostics used to validate the test.  
+The validation is done with the magnetic energy diagnostics in the `pot3d.out` file.  
+Note that, currently, all tests are set to use `ifprec=1` only.   
 
-1. **`validation`**  
-Grid size:  63x91x225 = 1.28 million cells  
-Memory (RAM) needed (using `ifprec=1`):  ~1 GB  
-2. **`small`**  
-Grid size:  133x361x901 = 43.26 million cells   
-Memory (RAM) needed (using `ifprec=1`):  ~6 GB
-3. **`medium`**  
-Grid size:  267x721x1801 = 346.7 million cells  
-Memory (RAM) needed (using `ifprec=1`):  ~41 GB  
-4. **`large`**  
-Grid size:  535x1441x3601 = 2.78 billion cells  
-Memory (RAM) needed (using `ifprec=1`):  ~330 GB 
-
-Note that these tests will *not* output the 3D magnetic field results of the run, so no extra disk space is needed.  
-Instead, the validation is done with the magnetic energy diagnostics in the `pot3d.out` file.  
-
-
+To run the testsuite, use the included script `run_test_suite.sh`
+To see available options, run `run_test_suite.sh -h`  
 
 

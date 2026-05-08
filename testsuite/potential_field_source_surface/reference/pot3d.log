@@ -1,0 +1,106 @@
+ 
+ POT3D Version 4.6.4, updated on 03/25/2026
+ 
+ Compiler:
+ nvfortran 26.3-0
+ 
+ Compiler Flags:
+ pot3d_cpp.f90 -march=native -mcpu=native -tp native -O3 -Mvect=simd -Mflushz -Mcache_align -Mfactorize -Mno-signed-zeros -Minline_cpu_f -mp=gpu -acc=gpu -stdpar=gpu -gpu=ccnative,mem:separate -Minfo=accel -I/opt/psi/nv/ext_deps/deps/hdf5/include -c -o pot3d.o -I/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/comm_libs/13.1/hpcx/hpcx-2.25.1/ompi/include -I/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/comm_libs/13.1/hpcx/hpcx-2.25.1/ompi/lib
+ 
+ ### COMMENT from CHECK_INPUT:
+ ### Field solve type:
+ 
+ OPTION = ss              
+ 
+ Total number of MPI ranks =             1
+ 
+ Number of MPI ranks in r =             1
+ Number of MPI ranks in t =             1
+ Number of MPI ranks in p =             1
+ 
+ Global mesh dimension in r =            55
+ Global mesh dimension in t =           181
+ Global mesh dimension in p =           361
+ 
+ Average # of r mesh pts per rank =   55.0
+ Average # of t mesh pts per rank =  181.0
+ Average # of p mesh pts per rank =  361.0
+ 
+ Estimated load imbalance =   0.00 %
+ 
+ ### COMMENT from READBR:
+ ### Reading Br file: br_hmi_synoptic_mr_polfil_720s_cr2131_181x361_smooth2.h5
+ 
+ ### COMMENT from READBR:
+ ### Computed flux balance:
+ 
+ Positive flux =     21.05775743760191     
+ Negative flux =    -21.05756641695800     
+ 
+ ### COMMENT from READBR:
+ ### Flux balance correction:
+ 
+ BR00 (monopole Br field magnitude) =    1.5200744758209058E-005
+ 
+ ### COMMENT from POT3D:
+ ### Starting PCG solve.
+ 
+ Iteration:        0   Residual:   9.999999999999994E-01
+ Iteration:      100   Residual:   5.171368006251082E-02
+ Iteration:      200   Residual:   1.467553945637110E-02
+ Iteration:      300   Residual:   1.422115921485815E-02
+ Iteration:      400   Residual:   1.113421818151611E-02
+ Iteration:      500   Residual:   4.806542542052403E-03
+ Iteration:      600   Residual:   2.594044382254104E-03
+ Iteration:      700   Residual:   2.548288107587495E-03
+ Iteration:      800   Residual:   9.278778318292182E-04
+ Iteration:      900   Residual:   7.092018904749771E-04
+ Iteration:     1000   Residual:   2.854592553218411E-04
+ Iteration:     1100   Residual:   1.546425533596316E-04
+ Iteration:     1200   Residual:   8.533255980740219E-05
+ Iteration:     1300   Residual:   5.405051966246750E-05
+ Iteration:     1400   Residual:   2.472102893842978E-05
+ Iteration:     1500   Residual:   1.476715299343517E-05
+ Iteration:     1600   Residual:   6.375792570843708E-06
+ Iteration:     1700   Residual:   4.186913368835460E-06
+ Iteration:     1800   Residual:   1.443580093374390E-06
+ Iteration:     1900   Residual:   9.716680801184171E-07
+ Iteration:     2000   Residual:   6.100215539789904E-07
+ Iteration:     2100   Residual:   4.485878477288099E-07
+ Iteration:     2200   Residual:   3.005368351778055E-07
+ Iteration:     2300   Residual:   2.071527163977332E-07
+ Iteration:     2400   Residual:   1.010599907840811E-07
+ Iteration:     2500   Residual:   5.649042132905964E-08
+ Iteration:     2600   Residual:   2.782065369619254E-08
+ Iteration:     2700   Residual:   1.498018411009354E-08
+ Iteration:     2800   Residual:   6.087228453092153E-09
+ Iteration:     2900   Residual:   3.009868009111549E-09
+ Iteration:     2995   Residual:   9.903437008397958E-10
+ 
+ ### COMMENT from SOLVE:
+ ### The field solver converged.
+ Number of iterations =          2995
+ 
+ ### COMMENT from WRITE_SOLUTION:
+ 
+ Writing Br to file: br.h5
+ 
+ ### COMMENT from WRITE_SOLUTION:
+ 
+ Writing Bt to file: bt.h5
+ 
+ ### COMMENT from WRITE_SOLUTION:
+ 
+ Writing Bp to file: bp.h5
+ 
+ ### COMMENT from GETB:
+ ### Magnetic energy diagnostic:
+ 
+Energy in Br**2 = 1.2534886641842869E+01
+Energy in Bt**2 = 4.5919595021517781E+00
+Energy in Bp**2 = 5.8791126081740526E+00
+Magnetic energy = 2.3005958752168702E+01
+ 
+ Total time:                   4.052809
+ Max Comm/Imbalance time:      0.140119
+ 

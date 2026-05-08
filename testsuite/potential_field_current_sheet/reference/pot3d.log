@@ -1,0 +1,113 @@
+ 
+ POT3D Version 4.6.4, updated on 03/25/2026
+ 
+ Compiler:
+ nvfortran 26.3-0
+ 
+ Compiler Flags:
+ pot3d_cpp.f90 -march=native -mcpu=native -tp native -O3 -Mvect=simd -Mflushz -Mcache_align -Mfactorize -Mno-signed-zeros -Minline_cpu_f -mp=gpu -acc=gpu -stdpar=gpu -gpu=ccnative,mem:separate -Minfo=accel -I/opt/psi/nv/ext_deps/deps/hdf5/include -c -o pot3d.o -I/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/comm_libs/13.1/hpcx/hpcx-2.25.1/ompi/include -I/opt/nvidia/hpc_sdk/Linux_x86_64/26.3/comm_libs/13.1/hpcx/hpcx-2.25.1/ompi/lib
+ 
+ ### COMMENT from CHECK_INPUT:
+ ### Field solve type:
+ 
+ OPTION = open            
+ 
+ Total number of MPI ranks =             1
+ 
+ Number of MPI ranks in r =             1
+ Number of MPI ranks in t =             1
+ Number of MPI ranks in p =             1
+ 
+ Global mesh dimension in r =           101
+ Global mesh dimension in t =           181
+ Global mesh dimension in p =           361
+ 
+ Average # of r mesh pts per rank =  101.0
+ Average # of t mesh pts per rank =  181.0
+ Average # of p mesh pts per rank =  361.0
+ 
+ Estimated load imbalance =   0.00 %
+ 
+ ### COMMENT from READBR:
+ ### Reading Br file: br_rss.h5
+ 
+ ### COMMENT from READBR:
+ ### Computed flux balance:
+ 
+ Positive flux =    0.2509640795514900     
+ Negative flux =   -0.2509496196630772     
+ 
+ ### COMMENT from READBR:
+ ### Flux balance correction:
+ 
+ BR00 (monopole Br field magnitude) =    1.1506677605000192E-006
+ 
+ ### COMMENT from POT3D:
+ ### Starting PCG solve.
+ 
+ Iteration:        0   Residual:   9.999999999999998E-01
+ Iteration:      100   Residual:   7.022965984646866E-01
+ Iteration:      200   Residual:   4.209136477344015E-01
+ Iteration:      300   Residual:   2.380969092151068E-01
+ Iteration:      400   Residual:   2.227566720838553E-01
+ Iteration:      500   Residual:   1.688414852110009E-01
+ Iteration:      600   Residual:   5.109500093593577E-02
+ Iteration:      700   Residual:   2.298229741720748E-02
+ Iteration:      800   Residual:   1.922550062356045E-02
+ Iteration:      900   Residual:   1.683950060738175E-02
+ Iteration:     1000   Residual:   5.485970762434841E-03
+ Iteration:     1100   Residual:   2.478160452281909E-03
+ Iteration:     1200   Residual:   2.784285004571823E-03
+ Iteration:     1300   Residual:   1.232336665911052E-03
+ Iteration:     1400   Residual:   4.765384390821039E-04
+ Iteration:     1500   Residual:   4.984792284741518E-04
+ Iteration:     1600   Residual:   2.352818507823812E-04
+ Iteration:     1700   Residual:   1.744169258654939E-04
+ Iteration:     1800   Residual:   1.351591637060496E-04
+ Iteration:     1900   Residual:   6.897868952128565E-05
+ Iteration:     2000   Residual:   3.926956968516395E-05
+ Iteration:     2100   Residual:   2.727531564651570E-05
+ Iteration:     2200   Residual:   1.123524379232706E-05
+ Iteration:     2300   Residual:   8.925030275364630E-06
+ Iteration:     2400   Residual:   3.452698541810795E-06
+ Iteration:     2500   Residual:   2.640990515674850E-06
+ Iteration:     2600   Residual:   1.041956209265926E-06
+ Iteration:     2700   Residual:   5.666651807667389E-07
+ Iteration:     2800   Residual:   3.075448682076003E-07
+ Iteration:     2900   Residual:   1.546311267876962E-07
+ Iteration:     3000   Residual:   9.241039428772708E-08
+ Iteration:     3100   Residual:   3.456918960537141E-08
+ Iteration:     3200   Residual:   2.412760823208724E-08
+ Iteration:     3300   Residual:   9.409509191196183E-09
+ Iteration:     3400   Residual:   4.922355013037289E-09
+ Iteration:     3500   Residual:   2.899651266250836E-09
+ Iteration:     3600   Residual:   1.511939882322591E-09
+ Iteration:     3678   Residual:   9.878266493658991E-10
+ 
+ ### COMMENT from SOLVE:
+ ### The field solver converged.
+ Number of iterations =          3678
+ 
+ ### COMMENT from WRITE_SOLUTION:
+ 
+ Writing Br to file: br.h5
+ 
+ ### COMMENT from WRITE_SOLUTION:
+ 
+ Writing Bt to file: bt.h5
+ 
+ ### COMMENT from WRITE_SOLUTION:
+ 
+ Writing Bp to file: bp.h5
+ 
+ ### COMMENT from GETB:
+ ### Magnetic energy diagnostic:
+ 
+Energy in Br**2 = 1.5270708731247470E-01
+Energy in Bt**2 = 5.1832129647316890E-03
+Energy in Bp**2 = 4.5876578371143893E-03
+Magnetic energy = 1.6247795811432078E-01
+ 
+ Total time:                   8.367644
+ Max Comm/Imbalance time:      0.175386
+ 
