@@ -1169,7 +1169,7 @@ subroutine init_mpi
 ! ****** Set the GPU device number based on local rank.
 ! ****** NOTE! This assumes than #GPUs per node = #MPI ranks per node.
 !
-!$call omp_set_default_device (iprocsh)
+!$ call omp_set_default_device (iprocsh)
 !$acc set device_num(iprocsh)
 !
 end subroutine
