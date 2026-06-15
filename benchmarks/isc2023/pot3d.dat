@@ -19,9 +19,9 @@
   phishift=0.
   br0file='br_input_small.h5'
   phifile=''
-  brfile='br.h5'
-  btfile='bt.h5'
-  bpfile='bp.h5'
+  brfile=''
+  btfile=''
+  bpfile=''
   br_photo_file=''
   ncghist=100
   ncgmax=40000
