@@ -128,8 +128,8 @@ An example of computing the "open field" model from the solar surface out to 20 
 
 Each test case contains an `input` folder with the run input files, a `run` folder used to run the test, and a `reference` folder containing the output diagnostics used to validate the test.  
 The validation is done with the magnetic energy diagnostics in the `pot3d.out` file.  
-Note that, currently, all tests are set to use `ifprec=1` only.   
-
+All tests run with `ifprec=1` by default - use the `-pc=2` option to run with `ifprec=2`.  
+  
 To run the testsuite, use the included script `run_test_suite.sh`
 To see available options, run `run_test_suite.sh -h`  
 
