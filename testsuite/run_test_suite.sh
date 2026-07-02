@@ -70,6 +70,7 @@ cleanup=0
 nochecksetup=0
 nocolor=0
 setrefdata=0
+pc=1
 pot3dexe="pot3d"
 mpicall="mpirun -np"
 
@@ -117,6 +118,9 @@ case $i in
     ;;
     -np=*)
     np="${i#*=}"
+    ;;
+    -pc=*)
+    pc="${i#*=}"
     ;;
     -cleanup)
     cleanup=1
@@ -209,7 +213,7 @@ then
   fi
   PTEST=$(which pot3d)
   if [ -z "${PTEST}" ]; then
-    ${echo} "${cR}==> ERROR! POT3D bin PATH problem!${cX}"
+    ${echo} "${cR}==> ERROR! POT3D not in bin, perhaps it has not been built?${cX}"
     exit 1
   fi
   ${echo} "${cG}==> Everything seems OK to run POT3D test suite!${cX}"
@@ -323,6 +327,10 @@ do
     cp ${INPUTDIR}/* ${RUNDIR}/ 2>/dev/null
 
     cd ${RUNDIR}
+
+    # Set preconditioner:
+    (sed -i '' "s/\([[:space:]]*\)ifprec=1\([[:space:]]*\)/\1ifprec=$pc\2/g" pot3d.dat 2>/dev/null \
+    || sed -i "s/\([[:space:]]*\)ifprec=1\([[:space:]]*\)/\1ifprec=$pc\2/g" pot3d.dat)
 
     ${echo} "======================================================="
     ${echo} "${cB}==> RUNNING POT3D${cX}"
