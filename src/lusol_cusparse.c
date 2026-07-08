@@ -61,7 +61,7 @@ float* restrict y_32;
 /* *** Initialize the cusparse functions in SP: *** */
 /* ******************************************************************* */
 
-void load_lusol_cusparse(float* restrict CSR_LU, int* restrict CSR_I, 
+void load_external_lu_solver(float* restrict CSR_LU, int* restrict CSR_I, 
                          int* restrict CSR_J,int N, int M)
 {
   N_global = N;
@@ -306,7 +306,7 @@ void load_lusol_cusparse(float* restrict CSR_LU, int* restrict CSR_I,
 /* *** Do the Solve Phase in SP: *** */
 /* ******************************************************************* */
 
-void lusol_cusparse(double* restrict x)
+void external_lu_solver(double* restrict x)
 {
   ////////////////////////////////////////////////////////////////////////////////////
   //
@@ -371,7 +371,7 @@ void lusol_cusparse(double* restrict x)
 /* ******************************************************************* */
 
 
-void unload_lusol_cusparse()
+void unload_external_lu_solver()
 {
   cusparseSpSV_destroyDescr(L_described);
   cusparseSpSV_destroyDescr(U_described);
