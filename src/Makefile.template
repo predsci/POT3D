@@ -1,32 +1,48 @@
 FC = <FC>
 
 INCFLAGS = -I<HDF5_INCLUDE_DIR>
-
 LIBFLAGS = -L<HDF5_LIB_DIR> <HDF5_LIB_FLAGS>
 
 USE_CUSPARSE = <USE_CUSPARSE>
+USE_HIPSPARSE = <USE_HIPSPARSE>
+USE_MKLSPARSE = <USE_MKLSPARSE>
+
+LDLIBS =
 
 ifeq ($(USE_CUSPARSE),1)
   IF_DEF = -DCUSPARSE
   CC = nvc
-  ADDFLAGS = -cudalib=cusparse
-  CCFLAGS = <CCFLAGS> $(ADDFLAGS)
+  FRT_EXTRAS = -cudalib=cusparse
+  CCFLAGS = <CCFLAGS> -cudalib=cusparse
+  SPARSE_OBJ = lusol_cusparse.o
+else ifeq ($(USE_HIPSPARSE),1)
+  IF_DEF = -DHIPSPARSE
+  CC = hipcc
+  FRT_EXTRAS = -DHIPSPARSE
+  LDLIBS = -Wl,--as-needed -lhipsparse -lamdhip64 -lstdc++
+  CCFLAGS = <CCFLAGS> -D__HIP_PLATFORM_AMD__ -x hip
+  SPARSE_OBJ = lusol_hipsparse.o
+else ifeq ($(USE_MKLSPARSE),1)
+  IF_DEF = -DMKLSPARSE
+  CC = icpx
+  FRT_EXTRAS = -DMKLSPARSE -fsycl -fsycl-targets=spir64 -cxxlib-icx
+  LDLIBS = -Wl,--as-needed -lmkl_sycl_sparse -lmkl_intel_lp64 \
+           -lmkl_sequential -lmkl_core -lsycl -lOpenCL \
+           -lpthread -lm -ldl
+  CCFLAGS = <CCFLAGS>
+  SPARSE_OBJ = lusol_mklsparse.o
 else
-  IF_DEF = 
-  ADDFLAGS = 
+  IF_DEF =
+  SPARSE_OBJ =
 endif
 
 FRTFLAGS = <FRTFLAGS> $(ADDFLAGS)
 
 OBJS0 = psi_io.o
-ifeq ($(USE_CUSPARSE),1)
-  OBJS = $(OBJS0) lusol_cusparse.o pot3d.o
-else
-  OBJS = $(OBJS0) pot3d.o
-endif
+OBJS = $(OBJS0) $(SPARSE_OBJ) pot3d.o
 
 all: $(OBJS)
-	$(FC) $(FRTFLAGS) $(INCFLAGS) $(OBJS) $(LIBFLAGS) -o pot3d
+	$(FC) $(FRTFLAGS) $(FRT_EXTRAS) $(INCFLAGS) $(OBJS) $(LIBFLAGS) $(LDLIBS) -o pot3d
 	rm -f *.mod *.modmic *.o 2>/dev/null
 
 install:
@@ -39,11 +55,16 @@ clean:
 pot3d.o: pot3d.F90
 	rm -f pot3d_cpp.f90 2>/dev/null
 	$(FC) -E -cpp $(IF_DEF) pot3d.F90 > pot3d_cpp.f90
-	$(FC) $(FRTFLAGS) $(INCFLAGS) -c pot3d_cpp.f90 -o pot3d.o
+	$(FC) $(FRTFLAGS) $(FRT_EXTRAS) $(INCFLAGS) -c pot3d_cpp.f90 -o pot3d.o
 
 psi_io.o: psi_io.f90
 	$(FC) $(FRTFLAGS) $(INCFLAGS) -c psi_io.f90 -o psi_io.o
 
-lusol_cusparse.o: lusol_cusparse.c 
-	$(CC) $(CCFLAGS) -c lusol_cusparse.c -o lusol_cusparse.o
+lusol_cusparse.o: lusol_cusparse.c
+	$(CC) $(CCFLAGS) -cuda -c lusol_cusparse.c -o lusol_cusparse.o
 
+lusol_hipsparse.o: lusol_hipsparse.c
+	$(CC) $(CCFLAGS) -Wno-unused-value -c lusol_hipsparse.c -o lusol_hipsparse.o
+
+lusol_mklsparse.o: lusol_mklsparse.cpp
+	$(CC) $(CCFLAGS) -c lusol_mklsparse.cpp -o lusol_mklsparse.o

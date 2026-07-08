@@ -52,8 +52,8 @@ module ident
 !-----------------------------------------------------------------------
 !
       character(*), parameter :: idcode='POT3D'
-      character(*), parameter :: vers  ='4.6.4'
-      character(*), parameter :: update='03/25/2026'
+      character(*), parameter :: vers  ='4.7.0'
+      character(*), parameter :: update='07/07/2026'
 !
 end module
 !#######################################################################
@@ -578,30 +578,30 @@ module assemble_array_interface
       end interface
 end module
 !#######################################################################
-module cusparse_interface
+module external_lu_solver_interface
 !
       use, intrinsic :: iso_c_binding
 !
-#ifdef CUSPARSE
+#if defined(CUSPARSE) || defined(HIPSPARSE) || defined(MKLSPARSE)
       interface
-  subroutine load_lusol_cusparse(CSR_A,CSR_AI,CSR_AJ,N,M) &
-          BIND(C, name="load_lusol_cusparse")
+  subroutine load_external_lu_solver(CSR_A,CSR_AI,CSR_AJ,N,M) &
+          BIND(C, name="load_external_lu_solver")
           use, intrinsic :: iso_c_binding
           implicit none
           integer(C_INT), value :: N,M
           type(C_PTR), value :: CSR_A,CSR_AI,CSR_AJ
-  end subroutine load_lusol_cusparse
+  end subroutine load_external_lu_solver
 !
-  subroutine lusol_cusparse(x) &
-          BIND(C, name="lusol_cusparse")
+  subroutine external_lu_solver(x) &
+          BIND(C, name="external_lu_solver")
           use, intrinsic :: iso_c_binding
           implicit none
           type(C_PTR), value :: x
-  end subroutine lusol_cusparse
+  end subroutine external_lu_solver
 !
-  subroutine unload_lusol_cusparse() &
-          BIND(C, name="unload_lusol_cusparse")
-  end subroutine unload_lusol_cusparse
+  subroutine unload_external_lu_solver() &
+          BIND(C, name="unload_external_lu_solver")
+  end subroutine unload_external_lu_solver
       end interface
 #endif
       integer(c_int) :: cN,cM
@@ -646,7 +646,7 @@ module prec_inv_interface
       use solve_params
       use matrix_storage_pot3d_solve
       use, intrinsic :: iso_c_binding
-      use cusparse_interface
+      use external_lu_solver_interface
       use timing
       implicit none
       real(r_typ), target, dimension(N) :: x
@@ -889,7 +889,10 @@ subroutine read_input_file
         ifprec,                  &! Preconditioner method:
                                   !  1: Diagonal (use for GPU runs)
                                   !  2: ILU0     (use for CPU runs or
-                                  !   GPU runs when built with cusparse)
+                                  !   GPU runs when built with cusparse
+                                  !   for Nvidia GPUs or hipsparse
+                                  !   for AMD GPUs or MKLSPARSE for
+                                  !   intel GPUs)
         ncgmax,                  &! Maximum alowed solver iterations.
         ncghist,                 &! Iteration information.
                                   !  0: Only write # total iterations.
@@ -1303,7 +1306,10 @@ subroutine check_input
            is_substring(compiler_flags,'stdpar=gpu') .and. &
           .not.is_substring(compiler_flags,'cusparse')) .or. &
           (is_substring(compiler,'Intel') .and. &
-           is_substring(compiler_flags,'spir64'))) then
+           is_substring(compiler_flags,'spir64') .and. &
+          .not.is_substring(compiler_flags,'MKLSPARSE')) .or. &
+          (is_substring(compiler_flags,'offload-arch') .and. &
+          .not.is_substring(compiler_flags,'HIPSPARSE'))) then
         if (ifprec.ne.1) then
           if (iamp0) then
             write (*,*)
@@ -4526,7 +4532,7 @@ subroutine dealloc_pot3d_matrix_coefs
 !
       use matrix_storage_pot3d_solve
       use cgcom
-      use cusparse_interface
+      use external_lu_solver_interface
 !
 !-----------------------------------------------------------------------
 !
@@ -4539,8 +4545,8 @@ subroutine dealloc_pot3d_matrix_coefs
 !$omp target exit data map(delete:a,a_i)
 !
       if (ifprec.eq.2) then
-#ifdef CUSPARSE
-        call unload_lusol_cusparse
+#if defined(CUSPARSE) || defined(HIPSPARSE) || defined(MKLSPARSE)
+        call unload_external_lu_solver
 !$omp target exit data map(delete:a_csr,a_csr_ja,a_csr_ia)
 #endif
         deallocate (a_csr)
@@ -4619,7 +4625,7 @@ subroutine load_preconditioner_pot3d_solve
       use cgcom
       use local_dims
       use, intrinsic :: iso_c_binding
-      use cusparse_interface
+      use external_lu_solver_interface
       use timing
 !
 !-----------------------------------------------------------------------
@@ -4662,16 +4668,22 @@ subroutine load_preconditioner_pot3d_solve
 !$omp target enter data map(alloc:a_csr,a_csr_ja,a_csr_dptr)
         call diacsr (N,M,a,a_offsets,a_csr,a_csr_ja,a_csr_ia,a_csr_dptr)
 !$omp target exit data map(delete:a_offsets)
-#ifdef CUSPARSE
+#if defined(CUSPARSE) || defined(HIPSPARSE) || defined(MKLSPARSE)
+!$omp target exit data map(delete:a_csr_dptr)
         cN=N
         cM=M
+#if defined(CUSPARSE)
 !$omp target data use_device_addr(a_csr,a_csr_ja,a_csr_ia)
-        call load_lusol_cusparse (C_LOC(a_csr(1)),          &
+#endif
+        call load_external_lu_solver (C_LOC(a_csr(1)),          &
                                   C_LOC(a_csr_ia(1)),       &
                                   C_LOC(a_csr_ja(1)),cN,cM)
+#if defined(CUSPARSE)
 !$omp end target data
+#endif
 #else
 !$omp target update from(a_csr,a_csr_ja,a_csr_ia,a_csr_dptr)
+!$omp target exit data map(delete:a_csr,a_csr_ja,a_csr_ia,a_csr_dptr)
 !
 ! ****** Overwrite CSR A with preconditioner L and U matrices:
 !
@@ -5151,7 +5163,7 @@ subroutine prec_inv (x)
       use solve_params
       use matrix_storage_pot3d_solve
       use, intrinsic :: iso_c_binding
-      use cusparse_interface
+      use external_lu_solver_interface
       use timing
 !
 !-----------------------------------------------------------------------
@@ -5182,9 +5194,9 @@ subroutine prec_inv (x)
 !
 ! ****** ILU0 Partial-Block-Jacobi:
 !
-#ifdef CUSPARSE
+#if defined(CUSPARSE) || defined(HIPSPARSE) || defined(MKLSPARSE)
 !$omp target data use_device_addr(x)
-        call lusol_cusparse(C_LOC(x(1)))
+        call external_lu_solver(C_LOC(x(1)))
 !$omp end target data
 !
 #else
@@ -7315,5 +7327,10 @@ end subroutine
 ! ### Version 4.6.4, 03/25/2026, modified by RC:
 !
 !       - Fixed issue with detecting Intel compiler.
+!
+! ### Version 4.7.0, 07/07/2026, modified by MS+RC:
+!
+!       - Added support for hipSPARSE and mklSPARSE
+!         to allow ILU0 PC (ifprec=2) for AMD and Intel GPUs.
 !
 !#######################################################################

@@ -44,10 +44,19 @@ while read field_name field_value; do
     HDF5_LIB_FLAGS="${field_value}"
   elif [[ "${field_name}" = "USE_CUSPARSE" ]]; then
     USE_CUSPARSE="${field_value}"
+  elif [[ "${field_name}" = "USE_HIPSPARSE" ]]; then
+    USE_HIPSPARSE="${field_value}"
+  elif [[ "${field_name}" = "USE_MKLSPARSE" ]]; then
+    USE_MKLSPARSE="${field_value}"
   elif [[ "${field_name}" = "CCFLAGS" ]]; then
     CCFLAGS="${field_value}"
   fi
 done < "${conf_file}"
+
+USE_CUSPARSE="${USE_CUSPARSE:-0}"
+USE_HIPSPARSE="${USE_HIPSPARSE:-0}"
+USE_MKLSPARSE="${USE_MKLSPARSE:-0}"
+CCFLAGS="${CCFLAGS:-}"
 
 unset field_value
 unset field_name
@@ -79,6 +88,8 @@ sed \
   -e "s#<HDF5_LIB_DIR>#${HDF5_LIB_DIR}#g" \
   -e "s#<HDF5_LIB_FLAGS>#${HDF5_LIB_FLAGS}#g" \
   -e "s#<USE_CUSPARSE>#${USE_CUSPARSE}#g" \
+  -e "s#<USE_HIPSPARSE>#${USE_HIPSPARSE}#g" \
+  -e "s#<USE_MKLSPARSE>#${USE_MKLSPARSE}#g" \
   -e "s#<CCFLAGS>#${CCFLAGS}#g" \
   Makefile.template > Makefile
 ${echo} "==> Compiling code..."
