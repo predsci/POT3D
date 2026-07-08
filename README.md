@@ -60,11 +60,16 @@ For example:  `mpiexec -np 1024 ./pot3d`
 ### Solver Options  
 
 POT3D uses a preconditoned Conjugate Gradient solver with two preconditioner options:  
-1) `ifprec=1`: Diagonal scaling.
+  
+1) `ifprec=1`: Diagonal scaling.  
 2) `ifprec=2`: Non-overlapping ILU0  
+  
 Typically, using `ifprec=2` will run POT3D faster than `ifprec=1`, but use more memory.
-For NVIDIA GPUs,  `ifprec=2` requires building the code with the `cuSparse` library.  
-For Intel and AMD GPUs, only `ifprec=1` is currently available.  
+  
+For NVIDIA GPUs, `ifprec=2` requires building the code with the [`cuSPARSE`](https://developer.nvidia.com/cusparse) library.  
+For AMD GPUs, `ifprec=2` requires building the code with the [`hipSPARSE`](https://rocmdocs.amd.com/projects/hipSPARSE/en/latest/index.html) library.  
+For AMD GPUs, `ifprec=2` requires building the code with the [`mklSPARSE`](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl-documentation.html) library.  
+  
 POT3D will auto-detect how it is being built, and may override `ifprec` to the option best suited for the current build.
     
 ### Running POT3D on GPUs 
