@@ -74,7 +74,15 @@ module number_types
       integer, parameter :: KIND_REAL_8=REAL64
       integer, parameter :: KIND_REAL_16=max(REAL128,REAL64)
 !
+! ****** Working precision: real(8) by default, real(4) when built
+! ****** with -DSINGLE_PRECISION (e.g. for GPUs without real(8)).
+! ****** psi_io reads and writes real(8) files in both cases.
+!
+#ifdef SINGLE_PRECISION
+      integer, parameter :: r_typ=KIND_REAL_4
+#else
       integer, parameter :: r_typ=KIND_REAL_8
+#endif
 !
 end module
 !#######################################################################
@@ -3823,7 +3831,9 @@ subroutine set_flux
             write (9,*) 'Writing BR0 (before sign flip) to file: ', &
                         trim(br_photo_original_file)
             call wrhdf_2d (br_photo_original_file,.true.,nt_g,np_g, &
-                           br0_g,th_g,ph_g,hdf32,ierr)
+                           real(br0_g,KIND_REAL_8), &
+                           real(th_g,KIND_REAL_8), &
+                           real(ph_g,KIND_REAL_8),hdf32,ierr)
           end if
         end if
 !
@@ -3846,7 +3856,8 @@ subroutine set_flux
           write (9,*)
           write (9,*) 'Writing BR0 to file: ',trim(br_photo_file)
           call wrhdf_2d (br_photo_file,.true.,nt_g,np_g, &
-                         br0_g,th_g,ph_g,hdf32,ierr)
+                         real(br0_g,KIND_REAL_8),real(th_g,KIND_REAL_8), &
+                         real(ph_g,KIND_REAL_8),hdf32,ierr)
         end if
       end if
 !
@@ -6081,7 +6092,10 @@ subroutine write_solution
             write (*,*)
             write (*,*) 'Writing the potential to file: ',trim(fname)
             call wrhdf_3d (fname,.true.,nr_g,nt_g,np_g, &
-                           phi_g,rh_g,th_g,ph_g,hdf32,ierr)
+                           real(phi_g,KIND_REAL_8), &
+                           real(rh_g,KIND_REAL_8), &
+                           real(th_g,KIND_REAL_8), &
+                           real(ph_g,KIND_REAL_8),hdf32,ierr)
         end if
 !
         deallocate (phi_g)
@@ -6111,7 +6125,8 @@ subroutine write_solution
           write (*,*)
           write (*,*) 'Writing Br to file: ',trim(fname)
           call wrhdf_3d (fname,.true.,nrm1_g,nt_g,np_g, &
-                         br_g,r_g,th_g,ph_g,hdf32,ierr)
+                         real(br_g,KIND_REAL_8),real(r_g,KIND_REAL_8), &
+                         real(th_g,KIND_REAL_8),real(ph_g,KIND_REAL_8),hdf32,ierr)
         end if
 !
         deallocate (br_g)
@@ -6141,7 +6156,8 @@ subroutine write_solution
           write (*,*)
           write (*,*) 'Writing Bt to file: ',trim(fname)
           call wrhdf_3d (fname,.true.,nr_g,ntm1_g,np_g, &
-                         bt_g,rh_g,t_g,ph_g,hdf32,ierr)
+                         real(bt_g,KIND_REAL_8),real(rh_g,KIND_REAL_8), &
+                         real(t_g,KIND_REAL_8),real(ph_g,KIND_REAL_8),hdf32,ierr)
 !
         end if
 !
@@ -6172,7 +6188,8 @@ subroutine write_solution
           write (*,*)
           write (*,*) 'Writing Bp to file: ',trim(fname)
           call wrhdf_3d (fname,.true.,nr_g,nt_g,npm1_g, &
-                         bp_g,rh_g,th_g,p_g,hdf32,ierr)
+                         real(bp_g,KIND_REAL_8),real(rh_g,KIND_REAL_8), &
+                         real(th_g,KIND_REAL_8),real(p_g,KIND_REAL_8),hdf32,ierr)
 !
         end if
 !
@@ -6706,6 +6723,8 @@ subroutine readbr (fname,br0_g,ierr)
 !
       real(r_typ), dimension(:,:), pointer :: bn
       real(r_typ), dimension(:), pointer :: tn,pn
+      real(KIND_REAL_8), dimension(:,:), pointer :: bn8
+      real(KIND_REAL_8), dimension(:), pointer :: tn8,pn8
 !
 !-----------------------------------------------------------------------
 !
@@ -6723,7 +6742,7 @@ subroutine readbr (fname,br0_g,ierr)
       write (*,*) '### COMMENT from READBR:'
       write (*,*) '### Reading Br file: ',trim(fname)
 !
-      call rdhdf_2d (fname,scale,ntn,npn,bn,tn,pn,ierr)
+      call rdhdf_2d (fname,scale,ntn,npn,bn8,tn8,pn8,ierr)
 !
       if (ierr.ne.0) then
         write (*,*)
@@ -6734,6 +6753,14 @@ subroutine readbr (fname,br0_g,ierr)
         ierr=1
         return
       end if
+!
+! ****** psi_io reads real(8); convert to the working precision.
+!
+      allocate (bn(ntn,npn),tn(ntn),pn(npn))
+      bn=real(bn8,r_typ)
+      tn=real(tn8,r_typ)
+      pn=real(pn8,r_typ)
+      deallocate (bn8,tn8,pn8)
 !
 ! ****** Check that the arrays has scales.
 !

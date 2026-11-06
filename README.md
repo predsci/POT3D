@@ -33,6 +33,11 @@ Given a configure script `conf/my_custom_build.conf`, the build script is invoke
 ```
 > ./build.sh ./conf/my_custom_build.conf
 ```
+  
+POT3D computes in double precision by default.  
+To compute in single precision (e.g. on GPUs without double precision support), add `-DSINGLE_PRECISION` to `FRTFLAGS`.  
+Input and output files remain in double precision.  
+Single-precision results differ from the double-precision reference runs, so the testsuite reports them as failing.  
     
 ### Validate Installation 
   
