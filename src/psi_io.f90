@@ -446,7 +446,11 @@ subroutine rdh5 (fname,s,ierr)
       call h5Dget_space_f (dset_id,dspace_id,ierr)
       call h5Sget_simple_extent_ndims_f (dspace_id,s%ndim,ierr)
 !
-      allocate(s_dims(s%ndim))
+! ****** h5Dread_f below is called with rank-3 buffers and reads three
+! ****** dimensions, so pad s_dims to 3 with trailing 1s.
+!
+      allocate(s_dims(3))
+      s_dims(:) = 1
 !
       allocate(maxpts(s%ndim))
       call h5Sget_simple_extent_dims_f (dspace_id,s_dims,maxpts,ierr)
