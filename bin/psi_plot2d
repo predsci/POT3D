@@ -2,19 +2,26 @@
 import argparse
 import signal
 import sys
+import os
 
 import matplotlib
 matplotlib.use('Agg')
+from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
-
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
-import psi_io as ps
+
 import psipals
 import psimath
+try:
+  import psi_io as ps
+  PSI_IO_AVAIL = True
+except ImportError:
+  import psihdf as ps
+  PSI_IO_AVAIL = False
 
 ################################
-#  PSI_PLOT2D:  Version 1.4.0  #
+#  PSI_PLOT2D:  Version 1.8.1  #
 ################################
 ########################################################################
 #          Predictive Science Inc.
@@ -119,7 +126,7 @@ def argParsing():
   parser.add_argument('-title',
             help='Title to show on plot',
             dest='title',
-            default=' ',
+            default='',
             required=False)
 
   parser.add_argument('-k',
@@ -144,7 +151,7 @@ def argParsing():
             required=False)
 
   parser.add_argument('-noax',
-            help='Turn off axis and display image flush with border.',
+            help='Turn off axis and display image flush with border. If using this, do not set nocb or noscales.',
             dest='noax',
             action='store_true',
             default=False,
@@ -327,6 +334,37 @@ def argParsing():
             type=str,
             required=False)
 
+  parser.add_argument('-circle_x',
+            help='X coordinatate of circles. Use: -circle_x \" x1, x2, ...\"',
+            dest='circle_x',
+            nargs='*',
+            type=float,
+            required=False)
+
+  parser.add_argument('-circle_y',
+            help='Y coordinatate of circles. Use: -circle_y \" y1, y2, ...\"',
+            dest='circle_y',
+            nargs='*',
+            type=float,
+            required=False)
+
+
+  parser.add_argument('-circle_color',
+            help='Specify the circle color. Use: -draw_circle_color \" color\"',
+            dest='circle_color',
+            nargs='*',
+            type=str,
+            default='green',
+            required=False)
+
+  parser.add_argument('-circle_size',
+            help='Specify the circle size. Use: -draw_circle_size \" 15\"',
+            dest='circle_size',
+            nargs='*',
+            type=float,
+            default=15,
+            required=False)
+
   parser.add_argument('-v',
             help='Print details as script runs.',
             dest='verbose',
@@ -344,6 +382,18 @@ def argParsing():
             help='Dimension to slice (1-indexed)',
             dest='slicedim',
             type=int,
+            required=False)
+            
+  parser.add_argument('-sliceloc',
+            help='Location of slice in the slicedim dimension.',
+            dest='sliceloc',
+            type=float,
+            required=False)            
+
+  parser.add_argument('-top_right_title',
+            help='Add a top right title.',
+            dest='top_right_title',
+            type=str,
             required=False)
 
 
@@ -377,41 +427,84 @@ def run(args):
   if (args.draw_square is not None):
     square_coords = args.draw_square.split(',')
 
+  fsize = 18
+
+  proj='rectilinear'
+  
+  if (args.rp or args.rt):
+    proj='polar'
+    
   # Load colormaps:
   psipals.load()
 
   # Read the data:
+  if not PSI_IO_AVAIL:
   
   # Check for 3D file
-  __,__,t3,__ = ps.rdhdf(args.iFile)
-  if (len(t3)!=0):
-    is3d=True
-  else: 
-    is3d=False
+    __,__,t3,__ = ps.rdhdf(args.iFile)
+    if (len(t3)!=0):
+      is3d=True
+    else: 
+      is3d=False
 
-  if (is3d):
-    if (args.slicedim and args.sliceidx):
-      #Read the file.
-      t1,t2,t3,data = ps.rdhdf_3d(args.iFile)
+    if (is3d):
+      if (args.slicedim and args.sliceidx):
+        #Read the file.
+        t1,t2,t3,data = ps.rdhdf_3d(args.iFile)
 
-      if (args.slicedim == 3):
-        data=np.squeeze(data[args.sliceidx-1,:,:])
-        xvec=t1
-        yvec=t2
-      elif (args.slicedim == 2):
-        data=np.squeeze(data[:,args.sliceidx-1,:])
-        xvec=t1
-        yvec=t3
-      elif (args.slicedim == 1):
-        data=np.squeeze(data[:,:,args.sliceidx-1])
-        xvec=t2
-        yvec=t3
+        if (args.slicedim == 3):
+          data=np.squeeze(data[args.sliceidx-1,:,:])
+          xvec=t1
+          yvec=t2
+        elif (args.slicedim == 2):
+          data=np.squeeze(data[:,args.sliceidx-1,:])
+          xvec=t1
+          yvec=t3
+        elif (args.slicedim == 1):
+          data=np.squeeze(data[:,:,args.sliceidx-1])
+          xvec=t2
+          yvec=t3
+      else:
+        print('Error: 3D file provided and -slicedim and -sliceidx are not set')
+        print('If you are trying to use -sliceloc, you must install psi-io with pip.')
+        return
     else:
-      print('Error: 3D file provided and -slicedim and -sliceidx are not set')
-      return
+      xvec,yvec,data = ps.rdhdf_2d(args.iFile)
   else:
-    xvec,yvec,data = ps.rdhdf_2d(args.iFile)
+  
+    # Determine if 3D
+    file_meta_data,*_ = ps.read_hdf_meta(args.iFile) 
 
+    if len(file_meta_data.shape) == 3:
+      is3d = True
+    else:
+      is3d = False
+
+    if (is3d):
+      if (args.slicedim and args.sliceloc):
+        if (args.slicedim == 3):
+          data,xvec,yvec = ps.np_interpolate_slice_from_hdf(args.iFile,None,None,args.sliceloc,)
+        elif (args.slicedim == 2):
+          data,xvec,yvec = ps.np_interpolate_slice_from_hdf(args.iFile,None,args.sliceloc,None,)
+        elif (args.slicedim == 1):
+          data,xvec,yvec = ps.np_interpolate_slice_from_hdf(args.iFile,args.sliceloc,None,None,)
+      elif (args.slicedim and args.sliceidx):
+        if (args.slicedim == 3):
+          data,xvec,yvec,_ = ps.read_hdf_by_index(args.iFile,None,None,args.sliceidx-1,)
+          data=np.squeeze(data)   
+        elif (args.slicedim == 2):
+          data,xvec,_,yvec = ps.read_hdf_by_index(args.iFile,None,args.sliceidx-1,None,)
+          data=np.squeeze(data)   
+        elif (args.slicedim == 1):
+          data,_,xvec,yvec = ps.read_hdf_by_index(args.iFile,args.sliceidx-1,None,None,)
+          data=np.squeeze(data) 
+      else:
+        print('Error: 3D file provided and either -slicedim and -sliceloc are both not set')
+        print('or -slicedim and -sliceidx are both not set.')
+        return
+    else:
+      xvec,yvec,data = ps.rdhdf_2d(args.iFile)
+ 
   if (len(xvec) == 0):
     if (args.tp):
       xvec = (np.array(range(0, len(data[0, :]))) / float(len(data[0, :]) - 1)) * 2.0 * np.pi
@@ -427,6 +520,8 @@ def run(args):
   data = np.multiply(data, float(args.unit_fac))
   cbstr = args.unit_label
 
+  pshift = np.double(args.phishift)
+
   if (args.tp):
     # If the data is in tp format, transpose to pt:
     if (np.max(yvec) > 3.5):
@@ -441,8 +536,6 @@ def run(args):
 
     if (args.sinlat):
       yvec = np.cos(yvec)
-
-    pshift = np.double(args.phishift)
 
     if (args.tp and np.abs(pshift) > 0):
     
@@ -524,19 +617,26 @@ def run(args):
     yvec_plot = yvec_plot2
 
   if (args.rp):
-    # Create 2D coordinates:
-    P, R = np.meshgrid(yvec_plot, xvec_plot, indexing='ij')
     # Apply phishift:
-    P = P + float(args.phishift)
-    # Get cart coords:
-    xvec_plot, yvec_plot = p2c(P, R)
+    yvec_plot = yvec_plot - pshift
 
-  if (args.rt):
-    # Create 2D coordinates:
-    R, T = np.meshgrid(xvec_plot, yvec_plot, indexing='ij')
-    # Assuming data is is rt and not tr.
-    yvec_plot, xvec_plot = p2c(T, R)
+  if (args.rp or args.rt):
+    #Need to transpose and flip things for polar plot:
     data = np.transpose(data)
+    tmp = yvec_plot
+    tmp2 = xvec_plot
+    yvec_plot = tmp2
+    xvec_plot = tmp
+    #Reset limits:
+    ymin = 0
+    ymax = xmax    
+    xmin = 0
+    
+  if args.rp:
+    xmax = 2*np.pi
+
+  if args.rt:
+    xmax = np.pi    
 
   # Set up colormap scales:
   cmin = np.min(data)
@@ -548,8 +648,6 @@ def run(args):
   if (args.csym):
     cmin = min(cmin, -np.abs(cmax))
     cmax = max(cmax, np.abs(cmin))
-
-  fsize = 18
 
   if (args.k):
     fc = 'k'
@@ -563,8 +661,13 @@ def run(args):
   else:
     ecol = "None"
 
-  fig = plt.figure(num=None, figsize=(14, 7), dpi=args.dpi, facecolor=fc,frameon=args.bgtrans)
-  ax = plt.gca()
+  fig, ax = plt.subplots(
+    figsize=(14, 7),
+    dpi=args.dpi,
+    subplot_kw={'projection': proj},
+    facecolor=fc,
+    frameon=args.bgtrans
+  )
 
   try:
     if (args.smooth):
@@ -599,12 +702,18 @@ def run(args):
   if (args.draw_square is not None):
     plt.plot(float(square_coords[0]), float(square_coords[1]), color='green', marker='s', markersize=15, zorder=10)
 
+  if (args.circle_x is not None):
+    for i in range (0,len(args.circle_x)):
+      plt.plot(args.circle_x[i], args.circle_y[i], color=args.circle_color[i], marker='o', markersize=args.circle_size[i], zorder=10)
+
   plt.set_cmap(args.cmap)
   plt.clim([cmin, cmax])
 
   plt.xlim(xmin=xmin, xmax=xmax)
   plt.ylim(ymin=ymin, ymax=ymax)
-  
+
+  ax.tick_params(axis='both', colors=tc, labelsize=fsize)  
+
   if (args.tp):
     if not args.ll:
       if args.xmin is None:
@@ -614,7 +723,7 @@ def run(args):
       if args.xmin is None and args.xmax is None:
         plt.xticks((0, np.pi / 2, np.pi, 3 * np.pi / 2, 2 * np.pi), ('0', '$\pi/2$', '$\pi$', '$3\pi/2$', '$2\pi$'))
       plt.xlabel('$\phi$', {'fontsize': fsize, 'color': tc})
-      xdtmi = np.pi / 8
+      xdtmi = np.pi / 12
       if (args.sinlat):
         if args.ymin is None:
           plt.ylim(ymin=-1)
@@ -636,7 +745,7 @@ def run(args):
           )
         plt.ylabel('Colatitude', {'fontsize': fsize, 'color': tc})
         plt.gca().invert_yaxis()
-        ydtmi = np.pi / 8
+        ydtmi = np.pi / 12
     else:
       if args.xmin is None:
         plt.xlim(xmin=0)
@@ -647,6 +756,8 @@ def run(args):
           (0, 90, 180, 270, 360),
           ('0', '90', '180', '270', '360')
         )
+        xmin=0
+        xmax=360
       plt.xlabel(r'Longitude ($^\circ$)', {'fontsize': fsize, 'color': tc})
       xdtmi = 15
       if (args.sinlat):
@@ -669,25 +780,37 @@ def run(args):
             ('-90', '-45', '0', '45', '90')
           )
         plt.ylabel(r'Latitude ($^\circ$)', {'fontsize': fsize, 'color': tc})
-        ydtmi = 5
+        ydtmi = 15
   elif (args.rp) or (args.rt):
     if (args.rmax is not None):
       rmax = float(args.rmax)
     else:
-      rmax = np.amax([np.abs(xmin),np.abs(ymin),np.abs(xmax),np.abs(ymax)])
-
-    plt.xlim(
-       xmin=-rmax if args.xmin is None else float(args.xmin),
-       xmax=rmax if args.xmax is None else float(args.xmax))
-    plt.ylim(
-      ymin=-rmax if args.ymin is None else float(args.ymin),
-      ymax=rmax if args.ymax is None else float(args.ymax))
+      rmax = ymax
 
     if (args.rt):
-      plt.xlim(xmin=0 if args.xmin is None else float(args.xmin))
+      ax.set_theta_zero_location("N")
+      ax.set_theta_direction(-1)
+      ax.set_thetamin(0)
+      ax.set_thetamax(180)
+      ax.set_xticks(np.deg2rad(np.linspace(0, 180, 7)))
+      yticks_tmp=np.linspace(0, ymax, 4)
+      ytick_labels = [rf"${y:.0f}\,R_\odot$" for y in yticks_tmp]
+      ax.set_yticks(yticks_tmp)
+      ax.set_yticklabels(ytick_labels)     
+      ax.tick_params(axis='y', colors=tc, labelsize=0.75*fsize) 
+      #ax.set_ylabel(rf"$R_\odot$",fontsize=fsize)
 
-    plt.xlabel('x ($R_{\odot}$)', {'fontsize': fsize, 'color': tc})
-    plt.ylabel('y ($R_{\odot}$)', {'fontsize': fsize, 'color': tc})
+    if (args.rp):
+      ax.set_theta_zero_location("E")
+      ax.set_thetamin(0)
+      ax.set_thetamax(360)
+      ax.set_xticks(np.deg2rad(np.linspace(0, 360, 8, endpoint=False)))
+      yticks_tmp=np.linspace(0, ymax, 4)[1:]
+      ytick_labels = [rf"${y:.0f}\,R_\odot$" for y in yticks_tmp]
+      ax.set_yticks(yticks_tmp)
+      ax.set_yticklabels(ytick_labels)  
+      ax.tick_params(axis='y', colors=tc, labelsize=0.75*fsize) 
+      #ax.set_rlabel_position(90)
 
     xdtmi = 1
     ydtmi = 1
@@ -697,11 +820,19 @@ def run(args):
     ydtmi = np.abs(ymax-ymin)/15.0
 
   if (args.finegrid):
-      minor_xticks = np.arange(xmin, xmax, xdtmi)
-      minor_yticks = np.arange(ymin, ymax, ydtmi)
+      if args.rp:
+        minor_xticks = np.pi/180. * np.linspace(0, 360, 48, endpoint=False)
+        minor_yticks = np.linspace(0, ymax, 13)    
+      elif args.rt:
+        minor_xticks = np.pi/180. * np.linspace(0, 180, 24, endpoint=False)
+        minor_yticks = np.linspace(0, ymax, 13)
+      else:
+        minor_xticks = np.linspace(xmin, xmax, num=int(round((xmax - xmin) / xdtmi)) + 1)
+        minor_yticks = np.linspace(ymin, ymax, num=int(round((ymax - ymin) / ydtmi)) + 1)
+#        minor_xticks = np.arange(xmin, xmax, xdtmi)
+#        minor_yticks = np.arange(ymin, ymax, ydtmi)
       ax.set_xticks(minor_xticks, minor=True)
       ax.set_yticks(minor_yticks, minor=True)
-      ax.grid(which='minor', alpha=0.5)
 
   if (args.contour):
     c_x, c_y, c_data = ps.rdhdf_2d(args.contour)
@@ -731,30 +862,54 @@ def run(args):
     xv = np.double(args.x_vline)
     plt.plot([xv, xv], [ymin, ymax], '--', linewidth=2, color='magenta')
 
-  ax_divider = make_axes_locatable(ax)
-  if (args.x_cbar):
-    cb_ax = ax_divider.append_axes("bottom", size="5%", pad=.8)
-    cb = plt.colorbar(
-      plot_h, cax=cb_ax, orientation="horizontal"
-    )
-    cb_ax.set_xlabel(cbstr, fontsize=fsize, color=tc)
-  else:
-    if (args.ll and args.sinlat):
-      cb_ax = ax_divider.append_axes("right", size="2.5%", pad=.2)
-      cb = plt.colorbar(plot_h, cax=cb_ax, orientation="vertical")
-      cb_ax.set_ylabel(cbstr, fontsize=fsize, color=tc)
+  pos = ax.get_position()
+  
+  if args.rp:
+    if args.x_cbar:
+      # Horizontal colorbar below the plot
+      cax = ax.inset_axes([0.15, -0.12, 0.70, 0.05])   # [x0, y0, width, height] in axes fraction coords
+      cb = fig.colorbar(plot_h, cax=cax, orientation="horizontal")
+      cax.set_xlabel(cbstr, fontsize=fsize, color=tc)
     else:
-      cb_ax = ax_divider.append_axes("right", size="2.5%", pad=.2)
-      cb = plt.colorbar(
-        plot_h, cax=cb_ax, orientation="vertical"
-      )
-      cb_ax.set_ylabel(cbstr, fontsize=fsize, color=tc)
-
+      # Vertical colorbar to the right
+      cax = ax.inset_axes([1.1, 0.15, 0.04, 0.70])    # adjust x0 >1 to push outside, y0/height to center vertically
+      cb = fig.colorbar(plot_h, cax=cax, orientation="vertical")
+      cax.set_ylabel(cbstr, fontsize=fsize, color=tc)
+      
+    cax.tick_params(axis='both', colors=tc, labelsize=fsize, length=6)
+  elif args.rt:      
+    if args.x_cbar:
+      # Horizontal colorbar below the plot
+      cax = ax.inset_axes([0.15, -0.12, 0.70, 0.05])   # [x0, y0, width, height] in axes fraction coords
+      cb = fig.colorbar(plot_h, cax=cax, orientation="horizontal")
+      cax.set_xlabel(cbstr, fontsize=fsize, color=tc)
+    else:
+      # Vertical colorbar to the right
+      cax = ax.inset_axes([0.9, 0.15, 0.04, 0.70])    # adjust x0 >1 to push outside, y0/height to center vertically
+      cb = fig.colorbar(plot_h, cax=cax, orientation="vertical")
+      cax.set_ylabel(cbstr, fontsize=fsize, color=tc)
+      
+    cax.tick_params(axis='both', colors=tc, labelsize=fsize, length=6)        
+  else:
+    ax_divider = make_axes_locatable(ax)
+    if (args.x_cbar):
+      cb_ax = ax_divider.append_axes("bottom", size="5%", pad=.8)
+      cb = plt.colorbar(plot_h, cax=cb_ax, orientation="horizontal")
+      cb_ax.set_xlabel(cbstr, fontsize=fsize, color=tc)
+    else:
+      if (args.ll and args.sinlat):
+        cb_ax = ax_divider.append_axes("right", size="2.5%", pad=.2)
+        cb = plt.colorbar(plot_h, cax=cb_ax, orientation="vertical")
+        cb_ax.set_ylabel(cbstr, fontsize=fsize, color=tc)
+      else:
+        cb_ax = ax_divider.append_axes("right", size="2.5%", pad=.2)
+        cb = plt.colorbar(plot_h, cax=cb_ax, orientation="vertical")
+        cb_ax.set_ylabel(cbstr, fontsize=fsize, color=tc)
+        
+    cb_ax.tick_params(axis='both', colors=tc, labelsize=fsize, length=6)
+        
   cb.outline.set_edgecolor(tc)
-  cb_ax.tick_params(axis='both', color=tc, labelsize=fsize, length=6)
-
-  cb.ax.tick_params(axis='y',colors=tc)
-
+ 
   if (args.ll and args.sinlat):
     ax.set_box_aspect(aspect=1.0/np.pi)
     cb.ax.set_box_aspect(aspect=12.732395)
@@ -766,25 +921,29 @@ def run(args):
     plt.xlabel('Grid Index', {'fontsize': fsize, 'color': tc})
     plt.ylabel('Grid Index', {'fontsize': fsize, 'color': tc})
 
-  ax.tick_params(axis='both', colors=tc, labelsize=fsize)
-
   ax.set_facecolor(fc)
-  ax.spines['bottom'].set_color(tc)
-  ax.spines['top'].set_color(tc)
-  ax.spines['right'].set_color(tc)
-  ax.spines['left'].set_color(tc)
+  if args.rp or args.rt:
+    ax.spines['polar'].set_color(tc)
+  else:
+    ax.spines['bottom'].set_color(tc)
+    ax.spines['top'].set_color(tc)
+    ax.spines['right'].set_color(tc)
+    ax.spines['left'].set_color(tc)
 
   if (args.title is not None):
     ax.set_title(args.title, color=tc, size=fsize)
 
   if (not args.nogrid):
-    ax.grid()
+    ax.grid(which='major', color='gray', linestyle='dotted', linewidth=1.0, alpha=1.0, zorder=100)
+    if args.finegrid:
+      ax.grid(which='minor', color='gray', linestyle='dotted', linewidth=1.0, alpha=0.5, zorder=101)
 
   if (args.noscales):
     plot_h.axes.get_xaxis().set_visible(False)
     plot_h.axes.get_yaxis().set_visible(False)
 
   if (args.noax):
+    ax.set_title('')
     ax.set_frame_on(False)
     cb.remove()
     plot_h.axes.get_xaxis().set_visible(False)
@@ -793,6 +952,16 @@ def run(args):
 
   if (args.nocb):
     cb.remove()
+
+  if args.top_right_title:
+    pos = ax.get_position()
+    if (args.nocb or args.noax):
+      top_right_x = pos.x1 - 0.01
+    else:
+      top_right_x = - 5
+    top_right_y = pos.y1 + 0.135
+    plt.annotate(args.top_right_title, xy=(top_right_x, top_right_y), xycoords='axes fraction', fontsize=fsize, color=tc, fontweight='normal')
+
 
   if (args.oFile is None):
     if (args.tp):
@@ -804,9 +973,13 @@ def run(args):
       tagstr = ""
 
     if is3d:
-      idSlice = format(args.sliceidx, '#06d')
       idDim = format(args.slicedim, '#02d')
-      tag3d='_d'+idDim+'i'+idSlice
+      if args.sliceidx is not None:
+        idSlice = format(args.sliceidx,'#06d')
+        tag3d='_d'+idDim+'i'+idSlice
+      if args.sliceloc is not None:
+        idSlice = format(args.sliceloc,'#4.2f')
+        tag3d='_d'+idDim+'l'+idSlice
     else:
       tag3d = ""
 
@@ -832,4 +1005,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-
