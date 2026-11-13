@@ -21,7 +21,7 @@ except ImportError:
   PSI_IO_AVAIL = False
 
 ################################
-#  PSI_PLOT2D:  Version 1.8.1  #
+#  PSI_PLOT2D:  Version 1.9.0  #
 ################################
 ########################################################################
 #          Predictive Science Inc.
@@ -54,6 +54,16 @@ def p2c(p, r):
   x = r * np.cos(p)
   y = r * np.sin(p)
   return x, y
+
+def fix_contour_linestyle_argv(argv):
+  """Argparse treats values like -,-- as new flags; join as -contour_linestyle=..."""
+  i = 1
+  while i < len(argv):
+    if argv[i] == '-contour_linestyle' and i + 1 < len(argv) and argv[i + 1].startswith('-'):
+      argv[i] = '-contour_linestyle=' + argv[i + 1]
+      del argv[i + 1]
+    else:
+      i += 1
 
 def argParsing():
   parser = argparse.ArgumentParser(description='plot_2d:  This tool saves a png plot of a 2D hdf/h5 file.')
@@ -237,16 +247,40 @@ def argParsing():
             required=False)
 
   parser.add_argument('-contour',
-            help='Name of hdf/h5 file to create a contour of',
+            help='Name(s) of hdf/h5 file(s) to contour (comma-separated for multiple)',
             dest='contour',
             required=False)
 
+  parser.add_argument('-contour_labels',
+            help='Legend label for each contour file (comma-separated, same order as -contour)',
+            dest='contour_labels',
+            type=str,
+            required=False)
+
+  parser.add_argument('-contour_color',
+            help='Contour line color for each file (comma-separated matplotlib colors)',
+            dest='contour_color',
+            type=str,
+            required=False)
+
+  parser.add_argument('-contour_linestyle',
+            help='Contour linestyle for each file (comma-separated matplotlib chars, e.g. -,--,:,-.)',
+            dest='contour_linestyle',
+            type=str,
+            required=False)
+
+  parser.add_argument('-contour_linewidth',
+            help='Contour line width for each file (comma-separated floats)',
+            dest='contour_linewidth',
+            type=str,
+            required=False)
+
   parser.add_argument('-c_levels',
-            help='Values to create contours at (ordered space seperated values)',
+            help='Values to create contours at (ordered space seperated values). With multiple -contour files, only one level is allowed. Default: 0.0.',
             dest='c_levels',
             nargs='*',
             type=str,
-            default='0.0',
+            default=['0.0'],
             required=False)
 
   parser.add_argument('-x_vline',
@@ -835,28 +869,72 @@ def run(args):
       ax.set_yticks(minor_yticks, minor=True)
 
   if (args.contour):
-    c_x, c_y, c_data = ps.rdhdf_2d(args.contour)
-    # If the data is in tp format, transpose to pt:
-    if (args.tp):
-      if (np.max(c_y) > 3.5):
-        tmpt = c_x
-        tmpp = c_y
-        c_y = tmpt
-        c_x = tmpp
-        c_data = np.transpose(c_data)
-      if (np.min(c_y) < -0.5):
-        c_y = np.arccos(c_y)
-      if (args.sinlat):
-        c_y = np.cos(c_y)
+    contour_paths = [p.strip() for p in args.contour.split(',') if p.strip()]
+    if len(contour_paths) > 1 and len(args.c_levels) != 1:
+      print('Error: with multiple contour files, -c_levels must specify exactly one level.')
+      sys.exit(1)
 
-    if args.ll and args.tp:
-      c_x_temp = [psimath.Math.p_rad_lon_deg(x_pt) for x_pt in c_x]
-      c_x = c_x_temp
-      if (not args.sinlat):
-        c_y_temp = [psimath.Math.t_rad_lat_deg(y_pt) for y_pt in c_y]
-        c_y = c_y_temp
+    def contour_csv_list(s, conv=str):
+      if s is None:
+        return None
+      return [conv(x.strip()) for x in s.split(',') if x.strip()]
 
-    plt.contour(c_x, c_y, c_data, levels=np.array(args.c_levels), colors='black')
+    def contour_pick(seq, idx, default):
+      if seq is None or len(seq) == 0:
+        return default
+      if idx < len(seq):
+        return seq[idx]
+      return seq[-1]
+
+    c_labels = contour_csv_list(args.contour_labels)
+    c_colors = contour_csv_list(args.contour_color)
+    c_linestyles = contour_csv_list(args.contour_linestyle)
+    c_linewidths = contour_csv_list(args.contour_linewidth, float)
+    c_level = np.array(args.c_levels, dtype=float)
+    default_colors = ['black', 'red', 'blue', 'green', 'orange', 'purple', 'cyan', 'magenta']
+    legend_handles = []
+
+    for i, cpath in enumerate(contour_paths):
+      c_x, c_y, c_data = ps.rdhdf_2d(cpath)
+      if (args.tp):
+        if (np.max(c_y) > 3.5):
+          tmpt = c_x
+          tmpp = c_y
+          c_y = tmpt
+          c_x = tmpp
+          c_data = np.transpose(c_data)
+        if (np.min(c_y) < -0.5):
+          c_y = np.arccos(c_y)
+        if (args.sinlat):
+          c_y = np.cos(c_y)
+
+      if args.ll and args.tp:
+        c_x = [psimath.Math.p_rad_lon_deg(x_pt) for x_pt in c_x]
+        if (not args.sinlat):
+          c_y = [psimath.Math.t_rad_lat_deg(y_pt) for y_pt in c_y]
+
+      default_color = 'black' if len(contour_paths) == 1 else default_colors[i % len(default_colors)]
+      color = contour_pick(c_colors, i, default_color)
+      ls = contour_pick(c_linestyles, i, 'solid')
+      lw = contour_pick(c_linewidths, i, 1.5)
+      plt.contour(c_x, c_y, c_data, levels=c_level, colors=[color], linestyles=ls, linewidths=lw)
+      if c_labels is not None and i < len(c_labels):
+        legend_handles.append(Line2D([0], [0], color=color, linestyle=ls, linewidth=lw, label=c_labels[i]))
+
+    if c_labels is not None and len(c_labels) != len(contour_paths):
+      print('Warning: number of -contour_labels does not match number of contour files.')
+    if legend_handles:
+      ax.legend(
+        handles=legend_handles,
+        loc='lower center',
+        bbox_to_anchor=(0.5, 1.02),
+        ncol=len(legend_handles),
+        fontsize=fsize,
+        labelcolor=tc,
+        facecolor=fc,
+        edgecolor=tc,
+        borderaxespad=0.0,
+      )
 
   if (args.x_vline is not None):
     xv = np.double(args.x_vline)
@@ -999,6 +1077,7 @@ def run(args):
 
 def main():
   ## Get input agruments:
+  fix_contour_linestyle_argv(sys.argv)
   args = argParsing()
   run(args)
 
